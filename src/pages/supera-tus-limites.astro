@@ -1,0 +1,364 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PublicMobileNav from "@/components/PublicMobileNav.astro";
+import PublicSidebar from "@/components/PublicSidebar.astro";
+import { gameSessionCookie, getGameResult } from "@/lib/game";
+import {
+  ensureDefaultSettings,
+  getCategory,
+  getQuizReportSummary,
+  listCategoryAttemptSummaries,
+  listCategorySummaries
+} from "@/lib/store";
+import ChartColumn from "@lucide/astro/icons/chart-column";
+import ChevronRight from "@lucide/astro/icons/chevron-right";
+import CircleCheck from "@lucide/astro/icons/circle-check";
+import ListChecks from "@lucide/astro/icons/list-checks";
+import Moon from "@lucide/astro/icons/moon";
+import Play from "@lucide/astro/icons/play";
+import Rocket from "@lucide/astro/icons/rocket";
+import Sun from "@lucide/astro/icons/sun";
+import Target from "@lucide/astro/icons/target";
+import Trophy from "@lucide/astro/icons/trophy";
+
+const goalScore = 80;
+const settings = ensureDefaultSettings();
+const report = getQuizReportSummary();
+const categories = listCategorySummaries();
+const categoryAttempts = listCategoryAttemptSummaries();
+const attemptByCategory = new Map(categoryAttempts.map((attempt) => [attempt.categoryId, attempt]));
+const readyCategories = categories.filter((category) => category.questionCount >= settings.questionsPerGame);
+const firstReadyCategory = readyCategories[0];
+const currentGame = getGameResult(Astro.cookies.get(gameSessionCookie)?.value);
+const activeCategory = currentGame.status === "incomplete" ? getCategory(currentGame.categoryId) : undefined;
+const totalQuestions = categories.reduce((total, category) => total + category.questionCount, 0);
+const progressToGoal = Math.min(100, Math.round((report.averageScore * 100) / goalScore));
+const gapToGoal = Math.max(goalScore - report.averageScore, 0);
+const bestLabel = report.bestCategoryName ? `${report.bestCategoryName} - ${report.bestCategoryScore}%` : "Sin datos";
+const weakestLabel = report.weakestCategoryName ? `${report.weakestCategoryName} - ${report.weakestCategoryScore}%` : "Sin datos";
+
+const primaryHref = activeCategory
+  ? `/jugar/${activeCategory.id}`
+  : firstReadyCategory
+    ? `/jugar/${firstReadyCategory.id}`
+    : "/categorias";
+
+const primaryLabel = activeCategory
+  ? `Continuar ${activeCategory.name}`
+  : firstReadyCategory
+    ? "Seguir practicando"
+    : "Ver categorias";
+
+const goalCards = [
+  {
+    label: "Meta sugerida",
+    value: `${goalScore}%`,
+    help: "Precision objetivo",
+    icon: Target,
+    tone: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200"
+  },
+  {
+    label: "Precision actual",
+    value: `${report.averageScore}%`,
+    help: gapToGoal > 0 ? `Faltan ${gapToGoal} puntos` : "Meta alcanzada",
+    icon: ChartColumn,
+    tone: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200"
+  },
+  {
+    label: "Intentos",
+    value: report.totalAttempts,
+    help: `${report.totalAnswered} preguntas respondidas`,
+    icon: ListChecks,
+    tone: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
+  },
+  {
+    label: "Categorias listas",
+    value: readyCategories.length,
+    help: `${totalQuestions} preguntas activas`,
+    icon: CircleCheck,
+    tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+  }
+];
+
+const improvementSteps = [
+  {
+    title: "Fija una meta corta",
+    description: `Busca subir hasta ${goalScore}% antes de aumentar dificultad o cambiar de estrategia.`,
+    icon: Target
+  },
+  {
+    title: "Practica una categoria",
+    description: `Completa rondas de ${settings.questionsPerGame} preguntas para tener retroalimentacion rapida.`,
+    icon: Play
+  },
+  {
+    title: "Ataca el punto debil",
+    description: report.weakestCategoryName
+      ? `Prioriza ${report.weakestCategoryName}, tu categoria con menor promedio.`
+      : "Cuando completes intentos, aqui se marcara la categoria que mas conviene reforzar.",
+    icon: ChartColumn
+  },
+  {
+    title: "Repite hasta consolidar",
+    description: "Cada practica aporta una lectura mas clara de tu progreso real.",
+    icon: Rocket
+  }
+];
+---
+
+<BaseLayout
+  title="Supera tus limites | Eus3 Simulador"
+  description="Convierte tus resultados del simulador EUS3 en metas concretas para mejorar precision y reforzar categorias debiles."
+  canonical="/supera-tus-limites"
+>
+  <main id="contenido" class="min-h-screen px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pt-5 lg:p-6">
+    <div class="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <PublicSidebar active="home" />
+
+      <section class="min-w-0 rounded-lg border border-slate-200/80 bg-white/86 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/84">
+        <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
+          <a href="/" class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/img/eus-logo.png" alt="Eus3" class="h-10 w-10 rounded-md object-contain" />
+            <div class="min-w-0">
+              <p class="text-[10px] font-bold uppercase text-orange-600 dark:text-orange-300">Simulador</p>
+              <p class="truncate text-sm font-bold text-slate-950 dark:text-white">EUS3 Preuniversitario</p>
+            </div>
+          </a>
+
+          <div class="hidden lg:block">
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Progreso</p>
+            <p class="text-sm font-bold text-slate-950 dark:text-white">Supera tus limites</p>
+          </div>
+
+          <button
+            type="button"
+            class="focus-ring ml-auto grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-orange-200"
+            aria-label="Cambiar tema"
+            data-theme-toggle
+          >
+            <Sun size={18} class="dark:hidden" aria-hidden="true" />
+            <Moon size={18} class="hidden dark:block" aria-hidden="true" />
+          </button>
+        </header>
+
+        <div class="p-4 sm:p-6 lg:p-8">
+          <section class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.25fr)_340px]">
+            <article class="overflow-hidden rounded-lg border border-orange-200 bg-slate-950 text-white shadow-lg shadow-orange-950/10 dark:border-white/10">
+              <div class="relative min-h-[23rem] bg-[linear-gradient(105deg,rgba(124,45,18,0.96),rgba(249,115,22,0.84)_54%,rgba(15,23,42,0.64)),url('/img/fondoNaranja.jpg')] bg-cover bg-center p-5 sm:min-h-80 sm:p-7">
+                <div class="absolute right-7 top-7 hidden h-28 w-28 rounded-full border border-white/20 sm:block" aria-hidden="true"></div>
+                <div class="absolute bottom-9 right-16 hidden h-16 w-24 rounded-md border border-white/25 sm:block" aria-hidden="true"></div>
+                <div class="relative z-10 flex min-h-[20rem] flex-col justify-between sm:min-h-[16.5rem]">
+                  <div class="max-w-2xl">
+                    <span class="inline-flex items-center gap-2 rounded-md bg-white/15 px-3 py-1.5 text-xs font-bold uppercase text-orange-50 backdrop-blur">
+                      <Rocket size={15} aria-hidden="true" />
+                      Supera tus limites
+                    </span>
+                    <h1 class="mt-5 max-w-2xl text-3xl font-black leading-tight sm:text-4xl">
+                      Cada practica te acerca a tu objetivo.
+                    </h1>
+                    <p class="mt-4 max-w-xl text-sm leading-6 text-orange-50 sm:text-base">
+                      Convierte tus resultados en una meta concreta: mide tu avance, refuerza lo debil y vuelve a intentarlo.
+                    </p>
+                  </div>
+
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <a href={primaryHref} class="focus-ring inline-flex w-fit items-center justify-center gap-2 rounded-md bg-white px-4 py-3 text-sm font-bold text-slate-950 shadow-sm hover:bg-orange-50">
+                      {primaryLabel}
+                      <Play size={16} fill="currentColor" aria-hidden="true" />
+                    </a>
+                    <a href="#objetivos" class="focus-ring inline-flex w-fit items-center justify-center gap-2 rounded-md border border-white/25 bg-white/10 px-4 py-3 text-sm font-bold text-white backdrop-blur hover:bg-white/15">
+                      Ver objetivos
+                      <ChevronRight size={16} aria-hidden="true" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <aside class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-base font-bold text-slate-950 dark:text-white">Ruta de mejora</h2>
+                  <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Un ciclo para convertir practica en avance.</p>
+                </div>
+                <Trophy size={22} class="text-orange-600 dark:text-orange-300" aria-hidden="true" />
+              </div>
+
+              <div class="mt-5 space-y-4">
+                {improvementSteps.map((step, index) => {
+                  const Icon = step.icon;
+                  return (
+                    <div class="grid grid-cols-[44px_1fr] gap-3">
+                      <span class="grid h-11 w-11 place-items-center rounded-md bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                        <Icon size={20} aria-hidden="true" />
+                      </span>
+                      <div>
+                        <p class="text-sm font-bold text-slate-950 dark:text-white">{index + 1}. {step.title}</p>
+                        <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">{step.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
+          </section>
+
+          <section class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {goalCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</p>
+                      <p class="mt-2 text-2xl font-black text-slate-950 dark:text-white">{card.value}</p>
+                    </div>
+                    <span class:list={["grid h-10 w-10 place-items-center rounded-md", card.tone]}>
+                      <Icon size={20} aria-hidden="true" />
+                    </span>
+                  </div>
+                  <p class="mt-3 text-xs text-slate-600 dark:text-slate-400">{card.help}</p>
+                </article>
+              );
+            })}
+          </section>
+
+          <section id="objetivos" class="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+              <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                <div>
+                  <h2 class="text-xl font-bold text-slate-950 dark:text-white">Objetivo actual</h2>
+                  <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Tu progreso frente a una meta practica de precision.</p>
+                </div>
+                <span class="w-fit rounded-md bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                  {progressToGoal}% de la meta
+                </span>
+              </div>
+
+              <div class="mt-6">
+                <div class="mb-2 flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                  <span>Precision media</span>
+                  <span>{report.averageScore}% / {goalScore}%</span>
+                </div>
+                <div class="h-3 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
+                  <div class="h-full rounded-md bg-orange-600" style={`width: ${progressToGoal}%`}></div>
+                </div>
+              </div>
+
+              <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                  <p class="text-xs font-bold text-slate-500 dark:text-slate-400">Mejor categoria</p>
+                  <p class="mt-2 text-sm font-black text-slate-950 dark:text-white">{bestLabel}</p>
+                </div>
+                <div class="rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                  <p class="text-xs font-bold text-slate-500 dark:text-slate-400">Categoria a reforzar</p>
+                  <p class="mt-2 text-sm font-black text-slate-950 dark:text-white">{weakestLabel}</p>
+                </div>
+              </div>
+            </article>
+
+            <aside class="rounded-lg border border-orange-200 bg-orange-50/70 p-5 dark:border-orange-400/20 dark:bg-orange-500/10">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-base font-bold text-orange-950 dark:text-orange-100">Siguiente empuje</h2>
+                  <p class="mt-2 text-sm leading-6 text-orange-900 dark:text-orange-100/80">
+                    {gapToGoal > 0
+                      ? `Tu siguiente objetivo es subir ${gapToGoal} puntos. Empieza por una ronda corta y revisa el detalle final.`
+                      : "Ya superaste la meta sugerida. Mantente constante y busca sostener el resultado en varias categorias."}
+                  </p>
+                </div>
+                <Rocket size={30} class="text-orange-700 dark:text-orange-200" aria-hidden="true" />
+              </div>
+            </aside>
+          </section>
+
+          <section class="mt-6">
+            <div class="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+              <div>
+                <h2 class="text-xl font-bold text-slate-950 dark:text-white">Practicas para avanzar</h2>
+                <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                  Elige una categoria lista y usa cada resultado para acercarte a la meta.
+                </p>
+              </div>
+              <span class="w-fit rounded-md bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                {readyCategories.length} listas
+              </span>
+            </div>
+
+            {categories.length === 0 ? (
+              <div class="rounded-lg border border-dashed border-slate-300 bg-white/85 p-8 text-center shadow-sm dark:border-white/10 dark:bg-slate-900">
+                <h3 class="text-lg font-bold text-slate-950 dark:text-white">Todavia no hay categorias</h3>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Cuando exista una categoria con preguntas suficientes, podras iniciar tu ruta de mejora.</p>
+              </div>
+            ) : (
+              <div class="grid gap-3">
+                {categories.map((category, index) => {
+                  const ready = category.questionCount >= settings.questionsPerGame;
+                  const percent = Math.min(100, Math.round((category.questionCount * 100) / Math.max(settings.questionsPerGame, 1)));
+                  const attempt = attemptByCategory.get(category.id);
+                  return (
+                    <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md dark:border-white/10 dark:bg-slate-900 dark:hover:border-orange-400/40 sm:p-5">
+                      <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_170px_190px_150px] lg:items-center">
+                        <div class="flex min-w-0 gap-3">
+                          <span class="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-orange-50 text-sm font-black text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <div class="min-w-0">
+                            <h3 class="text-base font-bold text-slate-950 dark:text-white">{category.name}</h3>
+                            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                              {category.questionCount} preguntas disponibles
+                            </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p class="text-xs font-bold text-slate-500 dark:text-slate-400">Mejor resultado</p>
+                          <p class="mt-1 text-sm font-black text-slate-950 dark:text-white">
+                            {attempt ? `${attempt.bestScore}%` : "Sin intentos"}
+                          </p>
+                        </div>
+
+                        <div>
+                          <div class="mb-1 flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                            <span>{percent}% banco minimo</span>
+                            <span>{settings.questionsPerGame}</span>
+                          </div>
+                          <div class="h-2 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
+                            <div class:list={["h-full rounded-md", ready ? "bg-orange-600" : "bg-amber-500"]} style={`width: ${percent}%`}></div>
+                          </div>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 lg:justify-end">
+                          <span class:list={[
+                            "shrink-0 rounded-md px-2.5 py-1 text-xs font-bold",
+                            ready
+                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                              : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200"
+                          ]}>
+                            {ready ? "Lista" : "Incompleta"}
+                          </span>
+
+                          {ready ? (
+                            <a href={`/jugar/${category.id}`} class="focus-ring inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700">
+                              <Play size={16} fill="currentColor" aria-hidden="true" />
+                              Practicar
+                            </a>
+                          ) : (
+                            <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                              Faltan {Math.max(settings.questionsPerGame - category.questionCount, 0)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      </section>
+    </div>
+    <PublicMobileNav active="home" />
+  </main>
+</BaseLayout>

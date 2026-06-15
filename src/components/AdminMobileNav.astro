@@ -1,0 +1,62 @@
+---
+import ChartColumn from "@lucide/astro/icons/chart-column";
+import ClipboardList from "@lucide/astro/icons/clipboard-list";
+import Grid2x2 from "@lucide/astro/icons/grid-2x2";
+import House from "@lucide/astro/icons/house";
+import ImportIcon from "@lucide/astro/icons/import";
+import Settings from "@lucide/astro/icons/settings";
+import Trophy from "@lucide/astro/icons/trophy";
+import Users from "@lucide/astro/icons/users";
+
+type AdminMobileNavActive =
+  | "dashboard"
+  | "categories"
+  | "questions"
+  | "simulations"
+  | "users"
+  | "import"
+  | "reports"
+  | "settings";
+
+interface Props {
+  active: AdminMobileNavActive;
+}
+
+const { active } = Astro.props;
+
+const items = [
+  { id: "dashboard", label: "Panel", href: "/admin", icon: House },
+  { id: "categories", label: "Categorias", href: "/admin/categorias", icon: Grid2x2 },
+  { id: "questions", label: "Preguntas", href: "/admin/preguntas", icon: ClipboardList },
+  { id: "simulations", label: "Simulacros", href: "/admin/simulacros", icon: Trophy },
+  { id: "users", label: "Usuarios", href: "/admin/usuarios", icon: Users },
+  { id: "import", label: "Importar", href: "/admin/importar", icon: ImportIcon },
+  { id: "reports", label: "Reportes", href: "/admin/reportes", icon: ChartColumn },
+  { id: "settings", label: "Configuracion", href: "/admin/configuracion", icon: Settings }
+] satisfies Array<{ id: AdminMobileNavActive; label: string; href: string; icon: typeof House }>;
+---
+
+<nav class="border-b border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-white/10 dark:bg-slate-900/70 lg:hidden" aria-label="Navegacion administrativa movil">
+  <div class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    {items.map((item) => {
+      const Icon = item.icon;
+      const isActive = active === item.id;
+      return (
+        <a
+          href={item.href}
+          aria-current={isActive ? "page" : undefined}
+          class:list={[
+            "focus-ring inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-bold transition",
+            isActive
+              ? "border-orange-200 bg-white text-orange-700 shadow-sm dark:border-orange-400/30 dark:bg-orange-500/15 dark:text-orange-200"
+              : "border-slate-200 bg-white text-slate-700 hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:text-orange-200"
+          ]}
+        >
+          <Icon size={16} stroke-width={2.25} aria-hidden="true" />
+          <span>{item.label}</span>
+        </a>
+      );
+    })}
+  </div>
+</nav>
+

@@ -1,0 +1,64 @@
+---
+import Grid2x2 from "@lucide/astro/icons/grid-2x2";
+import History from "@lucide/astro/icons/history";
+import House from "@lucide/astro/icons/house";
+import Trophy from "@lucide/astro/icons/trophy";
+
+type PublicSidebarActive = "home" | "categories" | "simulations" | "history";
+
+interface Props {
+  active: PublicSidebarActive;
+}
+
+const { active } = Astro.props;
+
+const items = [
+  { id: "home", label: "Inicio", href: "/", icon: House },
+  { id: "categories", label: "Categorias", href: "/categorias", icon: Grid2x2 },
+  { id: "simulations", label: "Simulacros", href: "/simulacros", icon: Trophy },
+  { id: "history", label: "Historial", href: "/historial", icon: History }
+] as const;
+---
+
+<aside class="hidden min-h-[calc(100vh-3rem)] flex-col overflow-hidden rounded-lg border border-slate-200/80 bg-white/95 shadow-[0_18px_45px_rgba(15,23,42,0.07)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90 dark:shadow-black/20 lg:flex">
+  <a href="/" class="group flex items-center gap-3 border-b border-slate-200/80 px-4 py-4 dark:border-white/10">
+    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-orange-50 text-orange-600 ring-1 ring-orange-100 transition group-hover:bg-orange-100 dark:bg-orange-500/12 dark:text-orange-200 dark:ring-orange-400/20">
+      <img src="/img/eus-logo.png" alt="Eus3" class="h-8 w-8 object-contain" />
+    </span>
+    <span class="min-w-0">
+      <span class="block text-[10px] font-black uppercase leading-none tracking-normal text-orange-600 dark:text-orange-300">Simulador</span>
+      <span class="mt-1 block truncate text-sm font-black leading-tight text-slate-950 dark:text-white">EUS3 Preuniversitario</span>
+    </span>
+  </a>
+
+  <nav class="flex-1 space-y-1 px-3 py-5" aria-label="Navegacion publica">
+    {items.map((item) => {
+      const Icon = item.icon;
+      const isActive = active === item.id;
+      return (
+        <a
+          href={item.href}
+          aria-current={isActive ? "page" : undefined}
+          class:list={[
+            "focus-ring group relative flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-bold transition duration-200",
+            isActive
+              ? "bg-orange-50 text-orange-700 shadow-[inset_3px_0_0_#f97316] dark:bg-orange-500/15 dark:text-orange-200 dark:shadow-[inset_3px_0_0_#fb923c]"
+              : "text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+          ]}
+        >
+          <span
+            class:list={[
+              "grid h-7 w-7 shrink-0 place-items-center rounded-md transition",
+              isActive
+                ? "bg-white text-orange-600 shadow-sm dark:bg-orange-500/20 dark:text-orange-200"
+                : "text-slate-500 group-hover:bg-white group-hover:text-orange-600 group-hover:shadow-sm dark:text-slate-400 dark:group-hover:bg-white/10 dark:group-hover:text-orange-200"
+            ]}
+          >
+            <Icon size={17} stroke-width={2.25} aria-hidden="true" />
+          </span>
+          <span class="min-w-0 truncate">{item.label}</span>
+        </a>
+      );
+    })}
+  </nav>
+</aside>

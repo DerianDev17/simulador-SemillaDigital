@@ -1,0 +1,152 @@
+---
+import PublicSidebar from "@/components/PublicSidebar.astro";
+import PublicMobileNav from "@/components/PublicMobileNav.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { gameSessionCookie, getErrorReview } from "@/lib/game";
+import ArrowLeft from "@lucide/astro/icons/arrow-left";
+import BookOpen from "@lucide/astro/icons/book-open";
+import CircleCheck from "@lucide/astro/icons/circle-check";
+import CircleX from "@lucide/astro/icons/circle-x";
+import RotateCcw from "@lucide/astro/icons/rotate-ccw";
+import Target from "@lucide/astro/icons/target";
+
+const gameId = Astro.url.searchParams.get("game") ?? Astro.cookies.get(gameSessionCookie)?.value;
+const review = getErrorReview(gameId);
+
+if (review.status === "incomplete") {
+  return Astro.redirect(`/jugar/${review.categoryId}`);
+}
+---
+
+<BaseLayout
+  title="Repasar errores | Eus3 Simulador"
+  description="Repaso privado de errores de un simulacro completado en Eus3."
+  robots="noindex, nofollow"
+>
+  <main id="contenido" class="min-h-screen px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pt-5 lg:p-6">
+    <div class="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <PublicSidebar active="simulations" />
+
+      <section class="min-w-0 rounded-lg border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/82 sm:p-6 lg:p-8">
+        {review.status === "not-found" ? (
+          <div class="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-white/10 dark:bg-slate-900">
+            <h1 class="text-2xl font-bold text-slate-950 dark:text-white">No hay errores disponibles</h1>
+            <p class="mt-2 text-slate-600 dark:text-slate-400">Completa un simulacro para revisar tus respuestas.</p>
+            <a href="/simulacros" class="focus-ring mt-7 inline-flex rounded-md bg-orange-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700">
+              Ir a simulacros
+            </a>
+          </div>
+        ) : (
+          <section class="space-y-6">
+            <div class="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
+              <div>
+                <p class="text-sm font-bold text-orange-700 dark:text-orange-200">Repaso de errores</p>
+                <h1 class="mt-1 text-2xl font-bold text-slate-950 dark:text-white sm:text-3xl">Corrige lo que fallaste</h1>
+                <p class="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+                  {review.categoryName}: {review.errors.length} errores de {review.totalQuestions} preguntas.
+                </p>
+              </div>
+
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <a href={`/final?game=${encodeURIComponent(review.game.id)}`} class="focus-ring inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10">
+                  <ArrowLeft size={16} aria-hidden="true" />
+                  Volver al resultado
+                </a>
+                <a href={`/jugar/${review.game.categoryId}`} class="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700">
+                  <RotateCcw size={16} aria-hidden="true" />
+                  Nuevo intento
+                </a>
+              </div>
+            </div>
+
+            <section class="grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "Puntaje", value: `${review.score}%`, help: "Resultado final", icon: Target, tone: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200" },
+                { label: "Correctas", value: review.correct, help: "Respondidas bien", icon: CircleCheck, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" },
+                { label: "Errores", value: review.errors.length, help: "Para repasar", icon: CircleX, tone: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-200" }
+              ].map((metric) => {
+                const Icon = metric.icon;
+                return (
+                  <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+                    <div class="flex items-start justify-between gap-3">
+                      <div>
+                        <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{metric.label}</p>
+                        <p class="mt-2 text-2xl font-black text-slate-950 dark:text-white">{metric.value}</p>
+                      </div>
+                      <span class:list={["grid h-10 w-10 place-items-center rounded-md", metric.tone]}>
+                        <Icon size={20} aria-hidden="true" />
+                      </span>
+                    </div>
+                    <p class="mt-3 text-xs text-slate-600 dark:text-slate-400">{metric.help}</p>
+                  </article>
+                );
+              })}
+            </section>
+
+            {review.errors.length === 0 ? (
+              <article class="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm dark:border-emerald-400/30 dark:bg-emerald-500/15">
+                <CircleCheck size={34} class="mx-auto text-emerald-700 dark:text-emerald-200" aria-hidden="true" />
+                <h2 class="mt-3 text-xl font-bold text-emerald-900 dark:text-emerald-100">No tuviste errores</h2>
+                <p class="mt-2 text-sm text-emerald-800 dark:text-emerald-200">Completaste este simulacro sin respuestas incorrectas.</p>
+              </article>
+            ) : (
+              <section class="space-y-4">
+                {review.errors.map((error) => (
+                  <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900" data-testid="error-review-card">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div class="min-w-0">
+                        <p class="text-xs font-bold uppercase text-orange-700 dark:text-orange-200">Pregunta {error.order}</p>
+                        <h2 class="mt-2 text-lg font-bold leading-7 text-slate-950 dark:text-white">{error.question.prompt}</h2>
+                      </div>
+                      <span class="inline-flex w-fit items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm font-bold text-red-700 dark:bg-red-500/15 dark:text-red-200">
+                        <CircleX size={16} aria-hidden="true" />
+                        Incorrecta
+                      </span>
+                    </div>
+
+                    {error.question.imagePath && (
+                      <div class="mt-5 grid min-h-40 place-items-center rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-950">
+                        <img src={error.question.imagePath} alt={`Imagen de apoyo para la pregunta: ${error.question.prompt}`} class="max-h-56 w-full rounded-md object-contain" />
+                      </div>
+                    )}
+
+                    <div class="mt-5 grid gap-3 lg:grid-cols-2">
+                      <div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-400/30 dark:bg-red-500/10">
+                        <p class="text-xs font-bold uppercase text-red-700 dark:text-red-200">Tu respuesta</p>
+                        <p class="mt-2 text-base font-bold text-red-950 dark:text-red-100">
+                          {error.selectedOption}. {error.selectedLabel}
+                        </p>
+                      </div>
+
+                      <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-400/30 dark:bg-emerald-500/10">
+                        <p class="text-xs font-bold uppercase text-emerald-700 dark:text-emerald-200">Respuesta correcta</p>
+                        <p class="mt-2 text-base font-bold text-emerald-950 dark:text-emerald-100">
+                          {error.correctOption}. {error.correctLabel}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-950">
+                      <div class="flex items-start gap-3">
+                        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                          <BookOpen size={18} aria-hidden="true" />
+                        </span>
+                        <div>
+                          <h3 class="text-sm font-bold text-slate-950 dark:text-white">Enfoque de repaso</h3>
+                          <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                            Vuelve a leer la pregunta y compara por que la opcion correcta responde mejor que la opcion marcada.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </section>
+            )}
+          </section>
+        )}
+      </section>
+    </div>
+    <PublicMobileNav active="simulations" />
+  </main>
+</BaseLayout>

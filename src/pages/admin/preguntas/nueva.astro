@@ -1,0 +1,146 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getAdminSession, verifyAdminCsrf } from "@/lib/auth";
+import { createCategory, createQuestion, listCategories } from "@/lib/store";
+import { saveQuestionImage } from "@/lib/uploads";
+import { categorySchema, questionSchema } from "@/lib/validation";
+
+const session = getAdminSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect("/admin/login");
+}
+
+let message = "";
+let messageType: "error" | "success" = "error";
+
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+  const verified = verifyAdminCsrf(Astro.cookies, formData);
+  if (!verified) {
+    return new Response("Token CSRF invalido.", { status: 403 });
+  }
+
+  const intent = formData.get("intent");
+
+  if (intent === "category") {
+    const parsed = categorySchema.safeParse({ name: formData.get("name") });
+    if (!parsed.success) {
+      message = parsed.error.issues[0]?.message ?? "Categoria invalida.";
+    } else {
+      createCategory(parsed.data.name);
+      return Astro.redirect("/admin/preguntas/nueva");
+    }
+  }
+
+  if (intent === "question") {
+    const parsed = questionSchema.safeParse({
+      categoryId: formData.get("categoryId"),
+      prompt: formData.get("prompt"),
+      optionA: formData.get("optionA"),
+      optionB: formData.get("optionB"),
+      optionC: formData.get("optionC"),
+      optionD: formData.get("optionD"),
+      correctOption: formData.get("correctOption")
+    });
+
+    if (!parsed.success) {
+      message = parsed.error.issues[0]?.message ?? "Pregunta invalida.";
+    } else {
+      const imageValue = formData.get("image");
+      const imageResult = await saveQuestionImage(imageValue instanceof File ? imageValue : null);
+      if (!imageResult.ok) {
+        message = imageResult.message;
+      } else {
+        createQuestion({ ...parsed.data, imagePath: imageResult.path });
+        message = "Pregunta creada correctamente.";
+        messageType = "success";
+      }
+    }
+  }
+}
+
+const categories = listCategories();
+---
+
+<AdminLayout title="Nueva pregunta" active="questions" csrfToken={session.csrfToken}>
+  <section class="space-y-5">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-950 dark:text-white">Nueva pregunta</h1>
+      <p class="text-sm text-slate-600 dark:text-slate-400">Crea categorias y preguntas para el cuestionario.</p>
+    </div>
+
+    {message && (
+      <p
+        role={messageType === "success" ? "status" : "alert"}
+        aria-live={messageType === "success" ? "polite" : "assertive"}
+        class:list={[
+        "rounded-md px-3 py-2 text-sm",
+        messageType === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+      ]}>
+        {message}
+      </p>
+    )}
+
+    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <h2 class="text-lg font-bold text-slate-950 dark:text-white">Agregar categoria</h2>
+      <form method="post" class="mt-4 flex flex-col gap-3 sm:flex-row">
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+        <input type="hidden" name="intent" value="category" />
+        <input class="focus-ring flex-1 rounded-md border border-slate-200 bg-white px-3 py-3 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="text" name="name" placeholder="Nombre de categoria" required />
+        <button class="focus-ring rounded-md border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10">Guardar categoria</button>
+      </form>
+    </section>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <h2 class="text-lg font-bold text-slate-950 dark:text-white">Datos de la pregunta</h2>
+      {categories.length === 0 ? (
+        <p class="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">Primero crea una categoria.</p>
+      ) : (
+        <form method="post" enctype="multipart/form-data" class="mt-5 space-y-4" data-testid="question-form">
+          <input type="hidden" name="csrfToken" value={session.csrfToken} />
+          <input type="hidden" name="intent" value="question" />
+
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Categoria</span>
+            <select class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" name="categoryId" required data-testid="question-category">
+              {categories.map((category) => <option value={category.id}>{category.name}</option>)}
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Pregunta</span>
+            <textarea class="focus-ring mt-1 min-h-28 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" name="prompt" required data-testid="question-prompt"></textarea>
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Imagen opcional</span>
+            <input class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp" />
+          </label>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            {["A", "B", "C", "D"].map((option) => (
+              <label class="block">
+                <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Opcion {option}</span>
+                <input class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="text" name={`option${option}`} required data-testid={`question-option-${option}`} />
+              </label>
+            ))}
+          </div>
+
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Respuesta correcta</span>
+            <select class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" name="correctOption" required data-testid="question-correct-option">
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+          </label>
+
+          <button class="focus-ring rounded-md bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-700" data-testid="save-question">
+            Guardar pregunta
+          </button>
+        </form>
+      )}
+    </section>
+  </section>
+</AdminLayout>

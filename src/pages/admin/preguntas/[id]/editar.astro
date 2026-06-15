@@ -1,0 +1,139 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getAdminSession, verifyAdminCsrf } from "@/lib/auth";
+import { getQuestion, listCategories, updateQuestion } from "@/lib/store";
+import { deleteQuestionImage, saveQuestionImage } from "@/lib/uploads";
+import { questionSchema } from "@/lib/validation";
+
+const session = getAdminSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect("/admin/login");
+}
+
+const id = Number(Astro.params.id);
+if (!Number.isInteger(id) || id <= 0) {
+  return Astro.redirect("/admin/preguntas");
+}
+
+let question = getQuestion(id);
+if (!question) {
+  return Astro.redirect("/admin/preguntas");
+}
+
+let message = "";
+
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+  const verified = verifyAdminCsrf(Astro.cookies, formData);
+  if (!verified) {
+    return new Response("Token CSRF invalido.", { status: 403 });
+  }
+
+  const parsed = questionSchema.safeParse({
+    categoryId: formData.get("categoryId"),
+    prompt: formData.get("prompt"),
+    optionA: formData.get("optionA"),
+    optionB: formData.get("optionB"),
+    optionC: formData.get("optionC"),
+    optionD: formData.get("optionD"),
+    correctOption: formData.get("correctOption")
+  });
+
+  if (!parsed.success) {
+    message = parsed.error.issues[0]?.message ?? "Pregunta invalida.";
+  } else {
+    const imageValue = formData.get("image");
+    const imageResult = await saveQuestionImage(imageValue instanceof File ? imageValue : null);
+    if (!imageResult.ok) {
+      message = imageResult.message;
+    } else {
+      updateQuestion(id, {
+        ...parsed.data,
+        imagePath: imageResult.path ?? question.imagePath
+      });
+      if (imageResult.path && question.imagePath && imageResult.path !== question.imagePath) {
+        await deleteQuestionImage(question.imagePath);
+      }
+      return Astro.redirect("/admin/preguntas");
+    }
+  }
+}
+
+question = getQuestion(id);
+const categories = listCategories();
+---
+
+<AdminLayout title="Editar pregunta" active="questions" csrfToken={session.csrfToken}>
+  <section class="space-y-5">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-950 dark:text-white">Editar pregunta</h1>
+      <p class="text-sm text-slate-600 dark:text-slate-400">Actualiza el contenido y la respuesta correcta.</p>
+    </div>
+
+    {message && <p class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/15 dark:text-red-200" role="alert" aria-live="assertive">{message}</p>}
+
+    {question && (
+      <form method="post" enctype="multipart/form-data" class="space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900" data-testid="edit-question-form">
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Categoria</span>
+          <select class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" name="categoryId" required>
+            {categories.map((category) => (
+              <option value={category.id} selected={category.id === question?.categoryId}>{category.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Pregunta</span>
+          <textarea class="focus-ring mt-1 min-h-28 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" name="prompt" required data-testid="edit-question-prompt">{question.prompt}</textarea>
+        </label>
+
+        {question.imagePath && <img src={question.imagePath} alt={`Imagen actual de la pregunta: ${question.prompt}`} class="max-h-40 rounded-md border border-slate-200 object-contain" />}
+
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Reemplazar imagen</span>
+          <input class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp" />
+        </label>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Opcion A</span>
+            <input class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="text" name="optionA" value={question.optionA} required />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Opcion B</span>
+            <input class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="text" name="optionB" value={question.optionB} required />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Opcion C</span>
+            <input class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="text" name="optionC" value={question.optionC} required />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Opcion D</span>
+            <input class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="text" name="optionD" value={question.optionD} required />
+          </label>
+        </div>
+
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Respuesta correcta</span>
+          <select class="focus-ring mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" name="correctOption" required>
+            {["A", "B", "C", "D"].map((option) => (
+              <option value={option} selected={option === question?.correctOption}>{option}</option>
+            ))}
+          </select>
+        </label>
+
+        <div class="flex gap-2">
+          <button class="focus-ring rounded-md bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-700" data-testid="update-question">
+            Actualizar
+          </button>
+          <a href="/admin/preguntas" class="focus-ring rounded-md border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10">
+            Cancelar
+          </a>
+        </div>
+      </form>
+    )}
+  </section>
+</AdminLayout>

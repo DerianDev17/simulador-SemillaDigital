@@ -1,52 +1,167 @@
-# Simulador EUS PHP
+# Simulador EUS
 
-**Simulador EUS PHP** es una aplicación web diseñada para simular un sistema de cuestionarios. Ideal para entornos educativos, esta herramienta permite a los usuarios completar cuestionarios, evaluar sus respuestas y obtener resultados instantáneos.
+Aplicacion web moderna para administrar y responder cuestionarios por categoria. Esta version reemplaza el runtime PHP/MySQL por Astro SSR, TypeScript, Tailwind CSS y SQLite local.
 
-## Tabla de Contenidos
+## Stack
 
-- [Instalación](#instalación)
-- [Uso](#uso)
-- [Características](#características)
-- [Contribución](#contribución)
-- [Licencia](#licencia)
-- [Contacto](#contacto)
+- Astro SSR con adapter Node
+- TypeScript estricto
+- Tailwind CSS
+- SQLite local en `data/app.db`
+- Drizzle ORM para schema y queries
+- Vitest para tests unitarios
+- Playwright para tests end-to-end
+- pnpm como unico package manager
 
-## Instalación
+## Requisitos
 
-Para instalar y configurar el proyecto, sigue estos pasos:
+- Node.js 22 o superior
+- pnpm 9 o superior
 
-1. Clona el repositorio:
+No necesitas XAMPP, Apache, PHP ni MySQL para correr esta version.
+
+## Inicio Rapido
+
+1. Instala dependencias.
+
    ```bash
-   git clone https://github.com/DerianDev17/simulador-eus-php.git
-2. Sube los archivos a un servidor PHP.
-3. Accede a la aplicación a través de index.php desde tu navegador.
+   pnpm install
+   ```
 
-## Uso
-Para usar el simulador:
+2. Crea o actualiza el schema SQLite.
 
-1. Navega a la URL donde has subido los archivos.
-2. Completa el cuestionario presentado en la interfaz de usuario.
-3. Envía tus respuestas y revisa los resultados instantáneamente.
+   ```bash
+   pnpm db:migrate
+   ```
 
-## Características
+3. Carga datos iniciales.
 
-* **Interfaz Intuitiva:** Fácil de usar, permite a los usuarios completar cuestionarios rápidamente.
-* **Evaluación Instantánea:** Procesa respuestas y muestra resultados en tiempo real.
-* **Fácil Configuración:** Simplemente clona el repositorio y súbelo a un servidor PHP.
+   ```bash
+   pnpm db:seed
+   ```
 
-## Contribución
-Contribuciones son bienvenidas. Para contribuir:
+   El seed crea:
 
-1. Realiza un fork del repositorio.
-2. Crea una rama para tu característica (git checkout -b feature/nueva-caracteristica).
-3. Realiza tus cambios y haz un commit (git commit -am 'Añadir nueva característica').
-4. Haz push a la rama (git push origin feature/nueva-caracteristica).
-5. Abre un Pull Request.
+   ```text
+   Usuario admin: admin
+   Password admin: admin
+   Categoria demo: Razonamiento demo
+   Preguntas demo: 3
+   ```
 
-## Licencia
-Este proyecto está licenciado bajo la Licencia MIT. Ver el archivo LICENSE para más detalles.
+4. Inicia el servidor de desarrollo.
 
-## Contacto
-Para cualquier consulta, por favor contacta a:
+   ```bash
+   pnpm dev
+   ```
 
-DerianDev17 - GitHub Profile
+5. Abre la app.
+
+   ```text
+   http://localhost:4321/
+   http://localhost:4321/admin/login
+   ```
+
+## Scripts
+
+```bash
+pnpm dev          # servidor local
+pnpm build        # build SSR para Node
+pnpm preview      # preview del build
+pnpm check        # astro check + TypeScript
+pnpm db:generate  # genera migraciones Drizzle futuras
+pnpm db:migrate   # crea/actualiza tablas SQLite
+pnpm db:seed      # crea datos iniciales
+pnpm test         # unit tests
+pnpm test:e2e     # Playwright tests
+```
+
+## Estructura
+
+```text
+.
+|-- src/
+|   |-- db/                 # schema, cliente SQLite y migraciones
+|   |-- layouts/            # layouts publico/admin
+|   |-- lib/                # auth, juego, CRUD, uploads, validacion
+|   `-- pages/              # rutas Astro
+|-- scripts/                # migrate y seed
+|-- tests/                  # Vitest y Playwright
+|-- public/
+|   |-- img/                # assets de marca/fondos
+|   `-- demo/questions/     # imagenes demo versionadas
+|-- data/
+|   |-- app.db              # SQLite local ignorado por Git
+|   `-- uploads/questions/  # imagenes subidas por el admin
+`-- legacy/php-app/         # version PHP anterior como referencia
+```
+
+## Rutas Principales
+
+- `/`: listado publico de categorias.
+- `/jugar/[categoriaId]`: flujo del cuestionario.
+- `/final`: resultado final.
+- `/admin/login`: login administrador.
+- `/admin`: dashboard.
+- `/admin/preguntas`: listado y eliminacion de preguntas.
+- `/admin/preguntas/nueva`: crear categoria y pregunta.
+- `/admin/preguntas/[id]/editar`: editar pregunta.
+- `/admin/configuracion`: usuario, password y preguntas por juego.
+
+## Base de Datos
+
+El archivo SQLite se crea en:
+
+```text
+data/app.db
+```
+
+Tablas principales:
+
+- `settings`: credenciales admin hasheadas y preguntas por juego.
+- `categories`: categorias.
+- `questions`: preguntas, opciones, respuesta correcta e imagen.
+- `stats`: visitas, respuestas y juegos completados.
+- `admin_sessions`: sesiones admin y token CSRF.
+- `game_sessions`: estado server-side de partidas.
+
+`data/` esta ignorado por Git para no versionar datos locales. En esa carpeta viven la base SQLite y las imagenes subidas desde el admin, asi que debe respaldarse si quieres conservar datos reales.
+
+## Seguridad Implementada
+
+- Password admin con hash `scrypt`.
+- Sesiones admin server-side en SQLite.
+- CSRF en mutaciones del admin.
+- Limite de intentos fallidos de login por usuario/IP.
+- Invalidacion de sesiones antiguas cuando cambian usuario o password.
+- Uploads de imagen fuera de `public/`, con validacion de tamano, extension y firma real.
+- Proteccion contra doble envio de respuestas en el cuestionario.
+- Validacion de formularios con Zod.
+- Las operaciones destructivas del admin usan POST.
+
+## Notas de Migracion
+
+- El runtime PHP anterior fue movido a `legacy/php-app/`.
+- Los assets publicos fueron movidos a `public/img/`.
+- Las imagenes demo de preguntas fueron movidas a `public/demo/questions/`.
+- Las imagenes subidas por el admin se guardan en `data/uploads/questions/` y se sirven desde `/uploads/questions/[archivo]`.
+- No se migro MySQL porque el repositorio no tenia dump real.
+- Para produccion, cambia el password `admin/admin` inmediatamente desde `/admin/configuracion`.
+- El seed mantiene `admin/admin` para arrancar el proyecto; al cambiar el password desde el admin se exige minimo 8 caracteres.
+
+## Verificacion
+
+Antes de entregar cambios o desplegar:
+
+```bash
+pnpm check
+pnpm test
+pnpm build
+pnpm test:e2e
+```
+
+Si Playwright fue instalado por primera vez y falta Chromium:
+
+```bash
+pnpm exec playwright install chromium
+```

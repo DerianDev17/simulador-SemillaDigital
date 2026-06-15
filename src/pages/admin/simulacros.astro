@@ -1,0 +1,137 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getAdminSession } from "@/lib/auth";
+import { ensureDefaultSettings, getQuizReportSummary, listCategorySummaries } from "@/lib/store";
+import ChartColumn from "@lucide/astro/icons/chart-column";
+import CircleAlert from "@lucide/astro/icons/circle-alert";
+import CircleCheck from "@lucide/astro/icons/circle-check";
+import Timer from "@lucide/astro/icons/timer";
+import Trophy from "@lucide/astro/icons/trophy";
+
+const session = getAdminSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect("/admin/login");
+}
+
+const settings = ensureDefaultSettings();
+const report = getQuizReportSummary();
+const categories = listCategorySummaries();
+const readyCategories = categories.filter((category) => category.questionCount >= settings.questionsPerGame);
+const pendingCategories = categories.filter((category) => category.questionCount < settings.questionsPerGame);
+const estimatedMinutes = Math.max(settings.questionsPerGame * 2, 1);
+const progressPercent =
+  report.totalAttempts > 0 ? report.averageScore : 0;
+const progressDegrees = Math.round((progressPercent / 100) * 360);
+---
+
+<AdminLayout title="Simulacros" active="simulations" csrfToken={session.csrfToken}>
+  <section class="space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-950 dark:text-white sm:text-3xl">Simulacros</h1>
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Vista administrativa de disponibilidad y actividad.</p>
+    </div>
+
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {[
+        { label: "Listos", value: readyCategories.length, help: "Categorias disponibles", icon: CircleCheck, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" },
+        { label: "Pendientes", value: pendingCategories.length, help: "Categorias incompletas", icon: CircleAlert, tone: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200" },
+        { label: "Completados", value: report.totalAttempts, help: "Intentos finalizados", icon: Trophy, tone: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200" },
+        { label: "Duracion", value: `${estimatedMinutes} min`, help: `${settings.questionsPerGame} preguntas`, icon: Timer, tone: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200" }
+      ].map((metric) => {
+        const Icon = metric.icon;
+        return (
+          <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{metric.label}</p>
+                <p class="mt-2 text-2xl font-black text-slate-950 dark:text-white">{metric.value}</p>
+              </div>
+              <span class:list={["grid h-10 w-10 place-items-center rounded-md", metric.tone]}>
+                <Icon size={20} aria-hidden="true" />
+              </span>
+            </div>
+            <p class="mt-3 text-xs text-slate-600 dark:text-slate-400">{metric.help}</p>
+          </article>
+        );
+      })}
+    </div>
+
+    <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
+      <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+        <div class="mb-4">
+          <h2 class="text-lg font-bold text-slate-950 dark:text-white">Disponibilidad por categoria</h2>
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Las categorias listas alimentan el simulacro publico.</p>
+        </div>
+
+        <div class="grid gap-3">
+          {categories.map((category, index) => {
+            const ready = category.questionCount >= settings.questionsPerGame;
+            return (
+              <article class="rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                  <div class="flex min-w-0 gap-3">
+                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-orange-50 text-sm font-black text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div class="min-w-0">
+                      <h3 class="font-bold text-slate-950 dark:text-white">{category.name}</h3>
+                      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        {category.questionCount} de {settings.questionsPerGame} preguntas minimas
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <span class:list={[
+                      "rounded-md px-2.5 py-1 text-xs font-bold",
+                      ready
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                        : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200"
+                    ]}>
+                      {ready ? "Publicable" : "Completar"}
+                    </span>
+                    <a href="/admin/preguntas" class="focus-ring rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:text-slate-200 dark:hover:text-orange-200">
+                      Banco
+                    </a>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </article>
+
+      <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-950 dark:text-white">Actividad</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Resumen de partidas.</p>
+          </div>
+          <ChartColumn size={22} class="text-orange-600 dark:text-orange-300" aria-hidden="true" />
+        </div>
+
+        <div class="mt-5 grid grid-cols-[108px_1fr] items-center gap-5">
+          <div class="grid h-28 w-28 place-items-center rounded-full" style={`background: conic-gradient(#f97316 ${progressDegrees}deg, #e2e8f0 0deg);`}>
+            <div class="grid h-20 w-20 place-items-center rounded-full bg-white text-center shadow-inner dark:bg-slate-900">
+              <div>
+                <p class="text-2xl font-black text-slate-950 dark:text-white">{progressPercent}%</p>
+                <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Completado</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <p class="text-lg font-black text-slate-950 dark:text-white">{report.totalAttempts}</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Finalizados</p>
+            </div>
+            <div>
+              <p class="text-lg font-black text-slate-950 dark:text-white">{report.totalAnswered}</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Respondidas</p>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </section>
+</AdminLayout>

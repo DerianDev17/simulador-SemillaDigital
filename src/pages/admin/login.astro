@@ -1,0 +1,107 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import {
+  clearLoginAttempts,
+  createAdminSession,
+  getAdminSession,
+  isLoginRateLimited,
+  loginIdentifier,
+  recordFailedLogin
+} from "@/lib/auth";
+import { verifyPassword } from "@/lib/password";
+import { ensureDefaultSettings } from "@/lib/store";
+import ChevronDown from "@lucide/astro/icons/chevron-down";
+
+const existingSession = getAdminSession(Astro.cookies);
+if (existingSession && Astro.request.method === "GET") {
+  return Astro.redirect("/admin");
+}
+
+let message = "";
+
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+  const username = formData.get("username");
+  const password = formData.get("password");
+  const usernameString = typeof username === "string" ? username.trim() : "";
+  const identifier = loginIdentifier(Astro.request, usernameString);
+  const settings = ensureDefaultSettings();
+
+  if (isLoginRateLimited(identifier)) {
+    message = "Demasiados intentos fallidos. Intenta nuevamente en unos minutos.";
+  } else if (
+    typeof username === "string" &&
+    typeof password === "string" &&
+    usernameString === settings.adminUsername &&
+    verifyPassword(password, settings.adminPasswordHash)
+  ) {
+    clearLoginAttempts(identifier);
+    createAdminSession(Astro.cookies, Astro.request);
+    return Astro.redirect("/admin");
+  } else {
+    recordFailedLogin(identifier);
+    message = "Usuario o contrasena incorrectos.";
+  }
+}
+---
+
+<BaseLayout
+  title="Ingresar | Admin Eus3"
+  description="Acceso administrativo privado del simulador Eus3."
+  robots="noindex, nofollow"
+>
+  <main id="contenido" class="grid min-h-screen place-items-center px-4 py-8">
+    <section class="grid w-full max-w-5xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-slate-200/70 dark:border-white/10 dark:bg-slate-950 lg:grid-cols-[0.85fr_1.15fr]">
+      <div class="relative min-h-72 bg-[linear-gradient(rgba(234,88,12,0.94),rgba(220,38,38,0.88)),url('/img/fondoNaranja.jpg')] bg-cover bg-center p-8 text-white lg:min-h-[520px]">
+        <img src="/img/eus-logo.png" alt="Eus3" class="h-16 w-16 rounded-md bg-white/90 object-contain p-1" />
+        <h1 class="mt-8 max-w-xs text-3xl font-bold leading-tight">EUS3 Preuniversitario</h1>
+        <p class="mt-3 max-w-xs text-sm leading-6 text-orange-50">Preparate hoy para alcanzar tus metas.</p>
+        <div class="absolute bottom-8 left-8 right-8 rounded-lg border border-white/20 bg-white/10 p-4 backdrop-blur">
+          <p class="text-sm font-bold">Acceso administrativo</p>
+          <p class="mt-1 text-xs text-orange-50">Gestiona categorias, preguntas y configuracion del simulador.</p>
+        </div>
+      </div>
+
+      <div class="p-6 sm:p-10 lg:p-12">
+        <div class="max-w-xl">
+          <p class="text-sm font-bold text-orange-700 dark:text-orange-200">Iniciar sesion</p>
+          <h2 class="mt-2 text-3xl font-bold text-slate-950 dark:text-white">Ingresa tus credenciales para continuar.</h2>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Puedes usar temporalmente admin/admin.</p>
+        </div>
+
+        {message && <p class="mt-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/15 dark:text-red-200" role="alert" aria-live="assertive">{message}</p>}
+
+        <form method="post" class="mt-7 space-y-4">
+          <label class="block">
+            <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Usuario</span>
+            <input
+              class="focus-ring mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-slate-900 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+              type="text"
+              name="username"
+              autocomplete="username"
+              placeholder="admin"
+              required
+            />
+          </label>
+          <label class="block">
+            <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Contrasena</span>
+            <div class="relative mt-1">
+              <input
+                class="focus-ring w-full rounded-md border border-slate-200 bg-white px-3 py-3 pr-10 text-slate-900 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                placeholder="admin"
+                required
+              />
+              <ChevronDown size={16} class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            </div>
+          </label>
+          <button class="focus-ring w-full rounded-md bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700" aria-label="Ingresar">
+            Iniciar sesion
+          </button>
+        </form>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

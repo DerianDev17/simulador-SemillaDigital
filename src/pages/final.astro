@@ -1,0 +1,118 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PublicMobileNav from "@/components/PublicMobileNav.astro";
+import PublicSidebar from "@/components/PublicSidebar.astro";
+import { gameSessionCookie, getGameResult } from "@/lib/game";
+import RotateCcw from "@lucide/astro/icons/rotate-ccw";
+
+const gameId = Astro.url.searchParams.get("game") ?? Astro.cookies.get(gameSessionCookie)?.value;
+const result = getGameResult(gameId);
+
+const formatDuration = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+};
+
+if (result.status === "incomplete") {
+  return Astro.redirect(`/jugar/${result.categoryId}`);
+}
+---
+
+<BaseLayout
+  title="Resultado | Eus3 Simulador"
+  description="Resultado privado de un simulacro completado en Eus3."
+  robots="noindex, nofollow"
+>
+  <main id="contenido" class="min-h-screen px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pt-5 lg:p-6">
+    <div class="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <PublicSidebar active="simulations" />
+
+      <section class="rounded-lg border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/82 sm:p-6 lg:p-8">
+        {result.status === "not-found" ? (
+          <div class="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-white/10 dark:bg-slate-900">
+            <h1 class="text-2xl font-bold text-slate-950 dark:text-white">No hay resultado disponible</h1>
+            <p class="mt-2 text-slate-600 dark:text-slate-400">Inicia una partida para ver tu puntaje.</p>
+            <a href="/" class="mt-7 inline-flex rounded-md bg-orange-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700">
+              Ir al menu
+            </a>
+          </div>
+        ) : (
+          <section class="space-y-6">
+            <div>
+              <p class="text-sm font-bold text-orange-700 dark:text-orange-200">Simulacro completado!</p>
+              <h1 class="text-2xl font-bold text-slate-950 dark:text-white sm:text-3xl">Aqui tienes tu resultado</h1>
+            </div>
+
+            <section class="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+              <article class="rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-white/10 dark:bg-slate-900">
+                <p class="text-sm font-bold text-slate-700 dark:text-slate-200">Tu puntaje</p>
+                <p class="mt-4 text-6xl font-bold text-slate-950 dark:text-white">{result.score}%</p>
+                <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{result.correct} de {result.total} preguntas correctas</p>
+                <span class="mt-4 inline-flex rounded-md bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  Buen trabajo!
+                </span>
+              </article>
+
+              <article class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900">
+                <h2 class="font-bold text-slate-950 dark:text-white">Resumen por categoria</h2>
+                <div class="mt-5 space-y-4">
+                  {[
+                    [result.categoryName, result.score],
+                    ["Correctas", Math.round((result.correct * 100) / result.total)],
+                    ["Incorrectas", Math.round((result.incorrect * 100) / result.total)]
+                  ].map(([label, percent]) => (
+                    <div>
+                      <div class="mb-1 flex justify-between text-sm">
+                        <span class="font-semibold text-slate-700 dark:text-slate-200">{label}</span>
+                        <span class="text-slate-500 dark:text-slate-400">{percent}%</span>
+                      </div>
+                      <div class="h-2 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
+                        <div class="h-full rounded-md bg-orange-600" style={`width: ${percent}%`}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </section>
+
+            <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ["Tiempo empleado", formatDuration(result.durationSeconds), "duracion real"],
+                ["Precision", `${result.score}%`, `${result.correct}/${result.total} correctas`],
+                ["Correctas", result.correct, "respuestas acertadas"],
+                ["Incorrectas", result.incorrect, "respuestas por revisar"]
+              ].map(([title, value, help]) => (
+                <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+                  <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{title}</p>
+                  <p class="mt-2 text-xl font-bold text-slate-950 dark:text-white">{value}</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">{help}</p>
+                </article>
+              ))}
+            </section>
+
+            <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <a href={`/detalle-resultado?game=${encodeURIComponent(result.game.id)}`} class="focus-ring inline-flex items-center justify-center rounded-md border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10">
+                Ver detalles
+              </a>
+              {result.incorrect > 0 ? (
+                <a href={`/repasar-errores?game=${encodeURIComponent(result.game.id)}`} class="focus-ring inline-flex items-center justify-center gap-2 rounded-md border border-orange-200 px-4 py-3 text-sm font-bold text-orange-700 hover:bg-orange-50 dark:border-orange-400/30 dark:text-orange-200 dark:hover:bg-orange-500/10">
+                  <RotateCcw size={16} aria-hidden="true" />
+                  Repasar errores
+                </a>
+              ) : (
+                <span class="inline-flex items-center justify-center rounded-md border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-700 dark:border-emerald-400/30 dark:text-emerald-200">
+                  Sin errores
+                </span>
+              )}
+              <a href="/simulacros" class="focus-ring inline-flex items-center justify-center rounded-md bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700">
+                Nuevo simulacro
+              </a>
+            </div>
+          </section>
+        )}
+      </section>
+    </div>
+    <PublicMobileNav active="simulations" />
+  </main>
+</BaseLayout>

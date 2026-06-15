@@ -1,0 +1,447 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PublicMobileNav from "@/components/PublicMobileNav.astro";
+import PublicSidebar from "@/components/PublicSidebar.astro";
+import { gameSessionCookie, getGameResult } from "@/lib/game";
+import {
+  ensureDefaultSettings,
+  getCategory,
+  getQuizReportSummary,
+  listCategoryAttemptSummaries,
+  listCategorySummaries,
+  listRecentQuizAttempts
+} from "@/lib/store";
+import ArrowLeft from "@lucide/astro/icons/arrow-left";
+import BookCheck from "@lucide/astro/icons/book-check";
+import BookOpen from "@lucide/astro/icons/book-open";
+import ChevronRight from "@lucide/astro/icons/chevron-right";
+import CircleCheck from "@lucide/astro/icons/circle-check";
+import Clock3 from "@lucide/astro/icons/clock-3";
+import ListChecks from "@lucide/astro/icons/list-checks";
+import Moon from "@lucide/astro/icons/moon";
+import Play from "@lucide/astro/icons/play";
+import RotateCcw from "@lucide/astro/icons/rotate-ccw";
+import Sun from "@lucide/astro/icons/sun";
+import Target from "@lucide/astro/icons/target";
+import Trophy from "@lucide/astro/icons/trophy";
+
+const { kind } = Astro.props;
+
+const settings = ensureDefaultSettings();
+const report = getQuizReportSummary();
+const categories = listCategorySummaries();
+const categoryAttempts = listCategoryAttemptSummaries();
+const attemptByCategory = new Map(categoryAttempts.map((attempt) => [attempt.categoryId, attempt]));
+const recentAttempts = listRecentQuizAttempts(1);
+const latestAttempt = recentAttempts[0];
+const readyCategories = categories.filter((category) => category.questionCount >= settings.questionsPerGame);
+const firstReadyCategory = readyCategories[0];
+const currentGame = getGameResult(Astro.cookies.get(gameSessionCookie)?.value);
+const activeCategory = currentGame.status === "incomplete" ? getCategory(currentGame.categoryId) : undefined;
+const totalQuestions = categories.reduce((total, category) => total + category.questionCount, 0);
+const averageMinutes = report.averageDurationSeconds > 0 ? `${Math.max(1, Math.round(report.averageDurationSeconds / 60))} min` : "Sin datos";
+const practiceHref = activeCategory
+  ? `/jugar/${activeCategory.id}`
+  : firstReadyCategory
+    ? `/jugar/${firstReadyCategory.id}`
+    : "/categorias";
+const practiceLabel = activeCategory
+  ? `Continuar ${activeCategory.name}`
+  : firstReadyCategory
+    ? "Empezar practica"
+    : "Ver categorias";
+const detailHref = latestAttempt ? `/detalle-resultado?game=${encodeURIComponent(latestAttempt.id)}` : practiceHref;
+const reviewHref = latestAttempt ? `/repasar-errores?game=${encodeURIComponent(latestAttempt.id)}` : practiceHref;
+const weakestLabel = report.weakestCategoryName ? `${report.weakestCategoryName} - ${report.weakestCategoryScore}%` : "Sin datos";
+
+const pages = {
+  conceptos: {
+    title: "Conceptos base | Eus3 Simulador",
+    canonical: "/conceptos-base",
+    headerKicker: "Aprendizaje",
+    eyebrow: "Conceptos base",
+    heading: "Empieza por categorias listas para construir seguridad antes de subir el ritmo.",
+    description: "Ordena tu estudio desde lo basico: usa categorias completas, repite rondas cortas y confirma que cada tema ya esta firme.",
+    heroClass:
+      "border-amber-200 shadow-amber-950/10 bg-[linear-gradient(105deg,rgba(120,53,15,0.96),rgba(217,119,6,0.76)_54%,rgba(15,23,42,0.68)),url('/img/fondoNaranja.jpg')]",
+    badgeClass: "text-amber-50",
+    accent: "amber",
+    icon: BookOpen,
+    primaryHref: practiceHref,
+    primaryLabel: activeCategory ? practiceLabel : firstReadyCategory ? "Practicar base" : "Ver categorias",
+    secondaryHref: "#categorias-listas",
+    secondaryLabel: "Ver categorias",
+    asideTitle: "Base de estudio",
+    asideDescription: "Una ruta para afianzar antes de acelerar.",
+    asideIcon: Trophy,
+    sectionId: "categorias-listas",
+    sectionTitle: "Categorias listas",
+    sectionDescription: "Empieza por bancos suficientes para practicar sin interrupciones.",
+    emptyTitle: "Todavia no hay categorias listas",
+    emptyDescription: "Cuando una categoria tenga preguntas suficientes, podras usarla para construir la base.",
+    bottomTitle: "Criterio para avanzar",
+    bottomDescription: "Sube el ritmo cuando una categoria se sienta estable y puedas repetir la ronda sin depender de memoria corta.",
+    actionLabel: "Practicar",
+    rowFocusLabel: "Estado base",
+    rowMetricLabel: "Resultado actual",
+    rowMetric: (attempt: typeof categoryAttempts[number] | undefined) => (attempt ? `${attempt.averageScore}% promedio` : "Sin intentos"),
+    rowFocus: (ready: boolean, attempt: typeof categoryAttempts[number] | undefined) =>
+      ready ? (attempt && attempt.averageScore >= 70 ? "Base firme" : "Base lista") : "Completar banco",
+    stats: [
+      { label: "Categorias listas", value: readyCategories.length, help: `${categories.length} categorias totales`, icon: CircleCheck, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" },
+      { label: "Preguntas base", value: totalQuestions, help: "Banco disponible", icon: BookOpen, tone: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200" },
+      { label: "Por practica", value: settings.questionsPerGame, help: "Ronda sugerida", icon: ListChecks, tone: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200" },
+      { label: "Promedio", value: `${report.averageScore}%`, help: report.totalAttempts > 0 ? `${report.totalAttempts} intentos` : "Sin intentos", icon: Target, tone: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200" }
+    ],
+    steps: [
+      { title: "Empieza por una categoria completa", description: `Prioriza las categorias con al menos ${settings.questionsPerGame} preguntas disponibles.`, icon: CircleCheck },
+      { title: "Haz una ronda corta", description: "Responde pocas preguntas para validar si comprendes el tema sin cansarte.", icon: Play },
+      { title: "Marca el patron", description: "Mira que tipo de pregunta se repite y que concepto te esta pidiendo.", icon: BookCheck },
+      { title: "Repite antes de acelerar", description: "Cuando el resultado sea estable, pasa a rondas con mas ritmo.", icon: RotateCcw }
+    ]
+  },
+  azar: {
+    title: "Preguntas al azar | Eus3 Simulador",
+    canonical: "/preguntas-al-azar",
+    headerKicker: "Aprendizaje",
+    eyebrow: "Preguntas al azar",
+    heading: "Cada intento mezcla el banco disponible para evitar memorizar solo el orden.",
+    description: "Entrena con rondas variables para reconocer conceptos aunque cambie el orden, el enfoque o la combinacion de preguntas.",
+    heroClass:
+      "border-sky-200 shadow-sky-950/10 bg-[linear-gradient(105deg,rgba(7,89,133,0.96),rgba(14,165,233,0.74)_52%,rgba(15,23,42,0.72)),url('/img/fondoazulM.jpg')]",
+    badgeClass: "text-sky-50",
+    accent: "sky",
+    icon: ListChecks,
+    primaryHref: practiceHref,
+    primaryLabel: activeCategory ? practiceLabel : firstReadyCategory ? "Mezclar preguntas" : "Ver categorias",
+    secondaryHref: "#mezcla-disponible",
+    secondaryLabel: "Ver mezcla",
+    asideTitle: "Ronda variable",
+    asideDescription: "Una practica para evitar respuestas por memoria.",
+    asideIcon: ListChecks,
+    sectionId: "mezcla-disponible",
+    sectionTitle: "Mezcla disponible",
+    sectionDescription: "Mientras mas preguntas tenga una categoria, mas variacion puedes obtener.",
+    emptyTitle: "Todavia no hay banco para mezclar",
+    emptyDescription: "Agrega preguntas suficientes para que el simulador pueda seleccionar al azar.",
+    bottomTitle: "Criterio de mezcla",
+    bottomDescription: "Si una categoria tiene mas preguntas que la ronda minima, cada intento puede cambiar y revelar si entiendes el concepto.",
+    actionLabel: "Mezclar",
+    rowFocusLabel: "Variacion",
+    rowMetricLabel: "Banco",
+    rowMetric: (_attempt: typeof categoryAttempts[number] | undefined, questionCount: number) =>
+      questionCount > settings.questionsPerGame ? `${questionCount - settings.questionsPerGame} extra` : "Banco justo",
+    rowFocus: (ready: boolean, _attempt: typeof categoryAttempts[number] | undefined, questionCount: number) =>
+      ready ? (questionCount > settings.questionsPerGame ? "Alta" : "Basica") : "Insuficiente",
+    stats: [
+      { label: "Preguntas mezclables", value: totalQuestions, help: "Banco total", icon: ListChecks, tone: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200" },
+      { label: "Categorias listas", value: readyCategories.length, help: "Con ronda minima", icon: CircleCheck, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" },
+      { label: "Intentos", value: report.totalAttempts, help: "Rondas completadas", icon: Trophy, tone: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200" },
+      { label: "Tiempo medio", value: averageMinutes, help: "Practica completada", icon: Clock3, tone: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200" }
+    ],
+    steps: [
+      { title: "Elige una categoria lista", description: "El banco debe tener suficientes preguntas para que el azar aporte valor.", icon: CircleCheck },
+      { title: "Deja que el sistema mezcle", description: "Cada ronda toma preguntas disponibles sin repetir un orden fijo.", icon: ListChecks },
+      { title: "Responde por concepto", description: "Evita memorizar ubicaciones o secuencias; busca la idea que se evalua.", icon: Target },
+      { title: "Compara varios intentos", description: "Si el resultado cambia demasiado, vuelve a conceptos base.", icon: RotateCcw }
+    ]
+  },
+  repaso: {
+    title: "Repaso dirigido | Eus3 Simulador",
+    canonical: "/repaso-dirigido",
+    headerKicker: "Aprendizaje",
+    eyebrow: "Repaso dirigido",
+    heading: "Los resultados te muestran donde volver para reforzar con mas precision.",
+    description: "Usa tus intentos completados como mapa: identifica categorias debiles, revisa respuestas y vuelve a practicar con foco.",
+    heroClass:
+      "border-rose-200 shadow-rose-950/10 bg-[linear-gradient(105deg,rgba(136,19,55,0.96),rgba(225,29,72,0.7)_48%,rgba(15,23,42,0.72)),url('/img/fondoAzul-marino.jpg')]",
+    badgeClass: "text-rose-50",
+    accent: "rose",
+    icon: Target,
+    primaryHref: latestAttempt ? detailHref : practiceHref,
+    primaryLabel: latestAttempt ? "Ver ultimo detalle" : "Generar resultado",
+    secondaryHref: latestAttempt ? reviewHref : "#repaso-categorias",
+    secondaryLabel: latestAttempt ? "Repasar errores" : "Ver categorias",
+    asideTitle: "Ruta de repaso",
+    asideDescription: "Un ciclo para estudiar desde el resultado.",
+    asideIcon: BookCheck,
+    sectionId: "repaso-categorias",
+    sectionTitle: "Categorias para reforzar",
+    sectionDescription: "Ordena tu siguiente practica segun intentos, promedio y punto debil.",
+    emptyTitle: "Todavia no hay resultados",
+    emptyDescription: "Completa una practica para activar el repaso dirigido.",
+    bottomTitle: "Criterio de repaso",
+    bottomDescription: "El mejor repaso no revisa todo: vuelve primero a la categoria con menor promedio o con errores recientes.",
+    actionLabel: "Reforzar",
+    rowFocusLabel: "Foco",
+    rowMetricLabel: "Promedio",
+    rowMetric: (attempt: typeof categoryAttempts[number] | undefined) => (attempt ? `${attempt.averageScore}%` : "Sin intentos"),
+    rowFocus: (_ready: boolean, attempt: typeof categoryAttempts[number] | undefined) =>
+      !attempt ? "Primer intento" : attempt.averageScore < 70 ? "Prioridad alta" : "Mantener",
+    stats: [
+      { label: "Intentos", value: report.totalAttempts, help: "Resultados guardados", icon: Trophy, tone: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200" },
+      { label: "Preguntas revisadas", value: report.totalAnswered, help: "En intentos completados", icon: BookCheck, tone: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200" },
+      { label: "A reforzar", value: weakestLabel, help: "Categoria mas baja", icon: Target, tone: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200" },
+      { label: "Promedio", value: `${report.averageScore}%`, help: "Precision general", icon: CircleCheck, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" }
+    ],
+    steps: [
+      { title: "Abre el detalle", description: "Compara tu respuesta marcada con la correcta antes de repetir.", icon: BookCheck },
+      { title: "Ubica el error principal", description: "Busca si fallaste por concepto, lectura o descarte rapido.", icon: Target },
+      { title: "Repite la categoria debil", description: "Vuelve al mismo tema para comprobar que el ajuste funciono.", icon: RotateCcw },
+      { title: "Mide el cambio", description: "El objetivo es subir consistencia, no solo acertar una pregunta aislada.", icon: Trophy }
+    ]
+  }
+};
+
+const page = pages[kind as keyof typeof pages] ?? pages.conceptos;
+const HeroIcon = page.icon;
+const AsideIcon = page.asideIcon;
+const actionClass =
+  page.accent === "sky"
+    ? "bg-sky-600 hover:bg-sky-700"
+    : page.accent === "rose"
+      ? "bg-rose-600 hover:bg-rose-700"
+      : "bg-amber-600 hover:bg-amber-700";
+const readyProgressClass =
+  page.accent === "sky" ? "bg-sky-500" : page.accent === "rose" ? "bg-rose-500" : "bg-amber-500";
+const softAccentClass =
+  page.accent === "sky"
+    ? "border-sky-200 bg-sky-50/70 dark:border-sky-400/20 dark:bg-sky-500/10"
+    : page.accent === "rose"
+      ? "border-rose-200 bg-rose-50/70 dark:border-rose-400/20 dark:bg-rose-500/10"
+      : "border-amber-200 bg-amber-50/70 dark:border-amber-400/20 dark:bg-amber-500/10";
+const softTextClass =
+  page.accent === "sky"
+    ? "text-sky-950 dark:text-sky-100"
+    : page.accent === "rose"
+      ? "text-rose-950 dark:text-rose-100"
+      : "text-amber-950 dark:text-amber-100";
+const softBodyClass =
+  page.accent === "sky"
+    ? "text-sky-900 dark:text-sky-100/80"
+    : page.accent === "rose"
+      ? "text-rose-900 dark:text-rose-100/80"
+      : "text-amber-900 dark:text-amber-100/80";
+---
+
+<BaseLayout title={page.title} description={page.description} canonical={page.canonical}>
+  <main id="contenido" class="min-h-screen px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pt-5 lg:p-6">
+    <div class="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <PublicSidebar active="home" />
+
+      <section class="min-w-0 rounded-lg border border-slate-200/80 bg-white/86 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/84">
+        <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
+          <a href="/" class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/img/eus-logo.png" alt="Eus3" class="h-10 w-10 rounded-md object-contain" />
+            <div class="min-w-0">
+              <p class="text-[10px] font-bold uppercase text-orange-600 dark:text-orange-300">Simulador</p>
+              <p class="truncate text-sm font-bold text-slate-950 dark:text-white">EUS3 Preuniversitario</p>
+            </div>
+          </a>
+
+          <div class="hidden lg:block">
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{page.headerKicker}</p>
+            <p class="text-sm font-bold text-slate-950 dark:text-white">{page.eyebrow}</p>
+          </div>
+
+          <button
+            type="button"
+            class="focus-ring ml-auto grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-orange-200"
+            aria-label="Cambiar tema"
+            data-theme-toggle
+          >
+            <Sun size={18} class="dark:hidden" aria-hidden="true" />
+            <Moon size={18} class="hidden dark:block" aria-hidden="true" />
+          </button>
+        </header>
+
+        <div class="p-4 sm:p-6 lg:p-8">
+          <section class="mb-5">
+            <a href="/aprende" class="focus-ring inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-orange-700 dark:text-slate-300 dark:hover:text-orange-200">
+              <ArrowLeft size={16} aria-hidden="true" />
+              Volver a Aprende
+            </a>
+          </section>
+
+          <section class="grid items-start gap-4 xl:grid-cols-[minmax(0,1.25fr)_340px]">
+            <article class:list={["overflow-hidden rounded-lg bg-slate-950 text-white shadow-lg dark:border-white/10", page.heroClass]}>
+              <div class="relative min-h-[23rem] bg-cover bg-center p-5 sm:min-h-80 sm:p-7">
+                <div class="absolute right-7 top-7 hidden h-28 w-28 rounded-md border border-white/20 sm:block" aria-hidden="true"></div>
+                <div class="absolute bottom-9 right-16 hidden h-20 w-20 rounded-full border border-white/25 sm:block" aria-hidden="true"></div>
+                <div class="relative z-10 flex min-h-[20rem] flex-col justify-between sm:min-h-[16.5rem]">
+                  <div class="max-w-2xl">
+                    <span class:list={["inline-flex items-center gap-2 rounded-md bg-white/15 px-3 py-1.5 text-xs font-bold uppercase backdrop-blur", page.badgeClass]}>
+                      <HeroIcon size={15} aria-hidden="true" />
+                      {page.eyebrow}
+                    </span>
+                    <h1 class="mt-5 max-w-2xl text-3xl font-black leading-tight sm:text-4xl">
+                      {page.heading}
+                    </h1>
+                    <p class="mt-4 max-w-xl text-sm leading-6 text-white/90 sm:text-base">
+                      {page.description}
+                    </p>
+                  </div>
+
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <a href={page.primaryHref} class="focus-ring inline-flex w-fit items-center justify-center gap-2 rounded-md bg-white px-4 py-3 text-sm font-bold text-slate-950 shadow-sm hover:bg-orange-50">
+                      {page.primaryLabel}
+                      <Play size={16} fill="currentColor" aria-hidden="true" />
+                    </a>
+                    <a href={page.secondaryHref} class="focus-ring inline-flex w-fit items-center justify-center gap-2 rounded-md border border-white/25 bg-white/10 px-4 py-3 text-sm font-bold text-white backdrop-blur hover:bg-white/15">
+                      {page.secondaryLabel}
+                      <ChevronRight size={16} aria-hidden="true" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <aside class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-base font-bold text-slate-950 dark:text-white">{page.asideTitle}</h2>
+                  <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{page.asideDescription}</p>
+                </div>
+                <AsideIcon size={22} class="text-orange-600 dark:text-orange-300" aria-hidden="true" />
+              </div>
+
+              <div class="mt-5 space-y-4">
+                {page.steps.map((step, index) => {
+                  const Icon = step.icon;
+                  return (
+                    <div class="grid grid-cols-[44px_1fr] gap-3">
+                      <span class="grid h-11 w-11 place-items-center rounded-md bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                        <Icon size={20} aria-hidden="true" />
+                      </span>
+                      <div>
+                        <p class="text-sm font-bold text-slate-950 dark:text-white">{index + 1}. {step.title}</p>
+                        <p class="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">{step.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
+          </section>
+
+          <section class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {page.stats.map((card) => {
+              const Icon = card.icon;
+              return (
+                <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</p>
+                      <p class="mt-2 truncate text-2xl font-black text-slate-950 dark:text-white">{card.value}</p>
+                    </div>
+                    <span class:list={["grid h-10 w-10 shrink-0 place-items-center rounded-md", card.tone]}>
+                      <Icon size={20} aria-hidden="true" />
+                    </span>
+                  </div>
+                  <p class="mt-3 truncate text-xs text-slate-600 dark:text-slate-400">{card.help}</p>
+                </article>
+              );
+            })}
+          </section>
+
+          <section id={page.sectionId} class="mt-6">
+            <div class="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+              <div>
+                <h2 class="text-xl font-bold text-slate-950 dark:text-white">{page.sectionTitle}</h2>
+                <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">{page.sectionDescription}</p>
+              </div>
+              <span class="w-fit rounded-md bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                {readyCategories.length} listas
+              </span>
+            </div>
+
+            {categories.length === 0 ? (
+              <div class="rounded-lg border border-dashed border-slate-300 bg-white/85 p-8 text-center shadow-sm dark:border-white/10 dark:bg-slate-900">
+                <h3 class="text-lg font-bold text-slate-950 dark:text-white">{page.emptyTitle}</h3>
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">{page.emptyDescription}</p>
+              </div>
+            ) : (
+              <div class="grid gap-3">
+                {categories.map((category, index) => {
+                  const ready = category.questionCount >= settings.questionsPerGame;
+                  const percent = Math.min(100, Math.round((category.questionCount * 100) / Math.max(settings.questionsPerGame, 1)));
+                  const attempt = attemptByCategory.get(category.id);
+                  return (
+                    <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md dark:border-white/10 dark:bg-slate-900 dark:hover:border-orange-400/40 sm:p-5">
+                      <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_150px_170px_190px_150px] lg:items-center">
+                        <div class="flex min-w-0 gap-3">
+                          <span class="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-orange-50 text-sm font-black text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <div class="min-w-0">
+                            <h3 class="text-base font-bold text-slate-950 dark:text-white">{category.name}</h3>
+                            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                              {category.questionCount} preguntas disponibles
+                            </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{page.rowFocusLabel}</p>
+                          <p class="mt-1 text-sm font-black text-slate-950 dark:text-white">{page.rowFocus(ready, attempt, category.questionCount)}</p>
+                        </div>
+
+                        <div>
+                          <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{page.rowMetricLabel}</p>
+                          <p class="mt-1 text-sm font-black text-slate-950 dark:text-white">{page.rowMetric(attempt, category.questionCount)}</p>
+                        </div>
+
+                        <div>
+                          <div class="mb-1 flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                            <span>{percent}% banco minimo</span>
+                            <span>{settings.questionsPerGame}</span>
+                          </div>
+                          <div class="h-2 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
+                            <div class:list={["h-full rounded-md", ready ? readyProgressClass : "bg-orange-500"]} style={`width: ${percent}%`}></div>
+                          </div>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 lg:justify-end">
+                          <span class:list={[
+                            "shrink-0 rounded-md px-2.5 py-1 text-xs font-bold",
+                            ready
+                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                              : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200"
+                          ]}>
+                            {ready ? "Lista" : "Incompleta"}
+                          </span>
+
+                          {ready ? (
+                            <a href={`/jugar/${category.id}`} class:list={["focus-ring inline-flex items-center gap-2 rounded-md px-4 py-3 text-sm font-bold text-white shadow-sm", actionClass]}>
+                              <Play size={16} fill="currentColor" aria-hidden="true" />
+                              {page.actionLabel}
+                            </a>
+                          ) : (
+                            <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                              Faltan {Math.max(settings.questionsPerGame - category.questionCount, 0)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section class:list={["mt-6 rounded-lg border p-5", softAccentClass]}>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 class:list={["text-base font-bold", softTextClass]}>{page.bottomTitle}</h2>
+                <p class:list={["mt-2 max-w-2xl text-sm leading-6", softBodyClass]}>{page.bottomDescription}</p>
+              </div>
+              <HeroIcon size={34} class:list={[softBodyClass]} aria-hidden="true" />
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+    <PublicMobileNav active="home" />
+  </main>
+</BaseLayout>

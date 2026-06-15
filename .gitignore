@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.astro/
+
+# local database and runtime files
+data/*
+!data/.gitkeep
+
+# environment
+.env
+.env.local
+
+# system files
+.DS_Store
+Thumbs.db
+
+# test output
+coverage/
+test-results/
+playwright-report/

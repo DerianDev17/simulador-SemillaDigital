@@ -1,0 +1,486 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import BenefitCard from "@/components/BenefitCard.astro";
+import PublicMobileNav from "@/components/PublicMobileNav.astro";
+import PublicSidebar from "@/components/PublicSidebar.astro";
+import { ensureDefaultSettings, getQuizReportSummary, incrementVisits, listCategorySummaries } from "@/lib/store";
+import BookCheck from "@lucide/astro/icons/book-check";
+import BookOpen from "@lucide/astro/icons/book-open";
+import ChevronLeft from "@lucide/astro/icons/chevron-left";
+import ChevronRight from "@lucide/astro/icons/chevron-right";
+import Moon from "@lucide/astro/icons/moon";
+import Pause from "@lucide/astro/icons/pause";
+import Play from "@lucide/astro/icons/play";
+import Rocket from "@lucide/astro/icons/rocket";
+import Sun from "@lucide/astro/icons/sun";
+import Target from "@lucide/astro/icons/target";
+import Trophy from "@lucide/astro/icons/trophy";
+
+const settings = ensureDefaultSettings();
+incrementVisits();
+const report = getQuizReportSummary();
+const categories = listCategorySummaries();
+const totalQuestions = categories.reduce((total, category) => total + category.questionCount, 0);
+const playableCategories = categories.filter((category) => category.questionCount >= settings.questionsPerGame).length;
+const firstPlayableCategory = categories.find((category) => category.questionCount >= settings.questionsPerGame);
+const heroHref = firstPlayableCategory ? `/jugar/${firstPlayableCategory.id}` : "#categorias";
+const progressPercent = report.totalAttempts > 0 ? report.averageScore : 0;
+const progressDegrees = Math.round((progressPercent / 100) * 360);
+
+const heroSlides = [
+  {
+    label: "Practica por categoria",
+    image: "/img/fondoNaranja.jpg"
+  },
+  {
+    label: "Ritmo de simulacro",
+    image: "/img/fondoazulM.jpg"
+  },
+  {
+    label: "Repaso enfocado",
+    image: "/img/fondoAzul-marino.jpg"
+  }
+];
+
+const featureCards = [
+  {
+    title: "Aprende",
+    description: "Refuerza tus conocimientos con preguntas clave.",
+    icon: BookOpen,
+    color: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200",
+    href: "/aprende"
+  },
+  {
+    title: "Practica enfocada",
+    description: "Resuelve preguntas y mejora tu rendimiento.",
+    icon: Target,
+    color: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200",
+    href: "/practica-enfocada"
+  },
+  {
+    title: "Supera tus limites",
+    description: "Cada practica te acerca a tu objetivo.",
+    icon: Rocket,
+    color: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200",
+    href: "/supera-tus-limites"
+  }
+];
+---
+
+<BaseLayout
+  title="Eus3 Simulador"
+  description="Practica para el preuniversitario EUS3 con categorias, simulacros y resultados detallados para mejorar tu preparacion."
+  canonical="/"
+>
+  <main id="contenido" class="min-h-screen px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pt-5 lg:p-6">
+    <div class="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <PublicSidebar active="home" />
+
+      <section class="min-w-0 rounded-lg border border-slate-200/80 bg-white/82 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/82">
+        <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-3 dark:border-white/10 sm:px-5">
+          <a href="/" class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/img/eus-logo.png" alt="Eus3" class="h-10 w-10 rounded-md object-contain" />
+            <div class="min-w-0">
+              <p class="text-[10px] font-bold uppercase text-orange-600 dark:text-orange-300">Simulador</p>
+              <p class="truncate text-sm font-bold text-slate-950 dark:text-white">EUS3 Preuniversitario</p>
+            </div>
+          </a>
+
+          <div class="hidden lg:block">
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Simulador de practica</p>
+            <p class="text-sm font-bold text-slate-950 dark:text-white">Panel principal</p>
+          </div>
+
+          <div class="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              class="focus-ring grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-orange-200"
+              aria-label="Cambiar tema"
+              data-theme-toggle
+            >
+              <Sun size={18} class="dark:hidden" aria-hidden="true" />
+              <Moon size={18} class="hidden dark:block" aria-hidden="true" />
+            </button>
+
+          </div>
+        </header>
+
+        <div class="p-4 sm:p-6 lg:p-8">
+          <section class="mb-5">
+            <h1 class="text-2xl font-bold leading-tight text-slate-950 dark:text-white sm:text-3xl">Bienvenido de nuevo!</h1>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Preparate para alcanzar tu mejor puntaje.</p>
+          </section>
+
+          <section class="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_320px]">
+            <article class="hero-banner overflow-hidden rounded-lg border border-orange-500/20 bg-slate-950 text-white shadow-lg shadow-orange-900/10">
+              <div
+                class="relative min-h-[22rem] p-5 sm:min-h-80 sm:p-7"
+                data-hero-carousel
+                aria-label="Banner de practica"
+                aria-roledescription="carrusel"
+              >
+                <div class="absolute inset-0" aria-hidden="true">
+                  {heroSlides.map((slide, index) => (
+                    <img
+                      src={slide.image}
+                      alt=""
+                      class:list={[
+                        "hero-slide absolute inset-0 h-full w-full object-cover",
+                        index === 0 && "is-active"
+                      ]}
+                      data-hero-slide
+                    />
+                  ))}
+                  <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(154,52,18,0.94),rgba(234,88,12,0.78)_45%,rgba(15,23,42,0.24))]"></div>
+                  <div class="absolute inset-0 bg-[radial-gradient(circle_at_82%_30%,rgba(255,255,255,0.34),transparent_16rem),linear-gradient(180deg,transparent,rgba(15,23,42,0.26))]"></div>
+                </div>
+
+                <div class="relative z-10 flex min-h-[19.5rem] flex-col justify-between sm:min-h-[17rem]">
+                  <div class="max-w-lg">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="rounded-md bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-orange-50 backdrop-blur">
+                        Practica por categoria
+                      </p>
+                      <p class="rounded-md border border-white/20 bg-slate-950/25 px-2.5 py-1 text-[11px] font-bold text-white/90 backdrop-blur" data-hero-caption>
+                        {heroSlides[0].label}
+                      </p>
+                    </div>
+                    <h2 class="mt-4 max-w-xl text-3xl font-bold leading-tight sm:mt-5 sm:text-4xl">Pon a prueba tus conocimientos</h2>
+                    <p class="mt-3 max-w-sm text-sm leading-6 text-orange-50 sm:mt-4">
+                      Elige una categoria y resuelve {settings.questionsPerGame} preguntas seleccionadas al azar.
+                    </p>
+                  </div>
+
+                  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <a href={heroHref} class="focus-ring group inline-flex w-fit items-center gap-2 rounded-md bg-white px-4 py-3 text-sm font-bold text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-orange-50 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+                      Comenzar ahora
+                      <Play size={16} fill="currentColor" class="transition group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" aria-hidden="true" />
+                    </a>
+
+                    <div class="flex items-center gap-3">
+                      <div class="flex items-center gap-2" aria-label="Imagenes del banner">
+                        {heroSlides.map((slide, index) => (
+                          <button
+                            type="button"
+                            class="hero-dot focus-ring"
+                            data-hero-dot
+                            data-slide-index={index}
+                            aria-label={`Ver imagen ${index + 1}: ${slide.label}`}
+                            aria-current={index === 0 ? "true" : "false"}
+                            title={slide.label}
+                          ></button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        class="focus-ring grid h-9 w-9 place-items-center rounded-md border border-white/20 bg-white/15 text-white backdrop-blur transition hover:bg-white/25"
+                        data-hero-toggle
+                        aria-label="Pausar carrusel"
+                        aria-pressed="false"
+                        title="Pausar carrusel"
+                      >
+                        <Pause size={17} data-hero-pause-icon aria-hidden="true" />
+                        <Play size={17} fill="currentColor" class="hidden" data-hero-play-icon aria-hidden="true" />
+                      </button>
+
+                      <div class="hidden items-center gap-2 sm:flex">
+                        <button
+                          type="button"
+                          class="focus-ring grid h-9 w-9 place-items-center rounded-md border border-white/20 bg-white/15 text-white backdrop-blur transition hover:bg-white/25"
+                          data-hero-prev
+                          aria-label="Imagen anterior"
+                          title="Imagen anterior"
+                        >
+                          <ChevronLeft size={17} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          class="focus-ring grid h-9 w-9 place-items-center rounded-md border border-white/20 bg-white/15 text-white backdrop-blur transition hover:bg-white/25"
+                          data-hero-next
+                          aria-label="Imagen siguiente"
+                          title="Imagen siguiente"
+                        >
+                          <ChevronRight size={17} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Trophy size={104} class="pointer-events-none absolute bottom-20 right-4 z-10 hidden text-white/55 sm:block sm:right-8 sm:size-32" aria-hidden="true" />
+              </div>
+            </article>
+
+            <article id="por-juego" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900 sm:p-5">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-base font-bold text-slate-950 dark:text-white">Tu progreso general</h2>
+                  <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Basado en partidas completadas.</p>
+                </div>
+                <BookCheck class="text-orange-600 dark:text-orange-300" size={22} aria-hidden="true" />
+              </div>
+
+              <div class="mt-4 grid grid-cols-[96px_1fr] items-center gap-4 sm:mt-5 sm:grid-cols-[120px_1fr] sm:gap-5">
+                <div
+                  class="grid h-24 w-24 place-items-center rounded-full sm:h-28 sm:w-28"
+                  style={`background: conic-gradient(#f97316 ${progressDegrees}deg, #e2e8f0 0deg);`}
+                >
+                  <div class="grid h-[4.35rem] w-[4.35rem] place-items-center rounded-full bg-white text-center shadow-inner dark:bg-slate-900 sm:h-20 sm:w-20">
+                    <div>
+                      <p class="text-xl font-bold text-slate-950 dark:text-white sm:text-2xl">{progressPercent}%</p>
+                      <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Precision</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 sm:block sm:space-y-3">
+                  <div>
+                    <p class="text-lg font-bold text-slate-950 dark:text-white">{categories.length}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Categorias</p>
+                  </div>
+                  <div>
+                    <p class="text-lg font-bold text-slate-950 dark:text-white">{settings.questionsPerGame}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Por juego</p>
+                  </div>
+                  <div>
+                    <p class="text-lg font-bold text-slate-950 dark:text-white">{totalQuestions}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Preguntas</p>
+                  </div>
+                </div>
+              </div>
+
+              <a href="/simulacros" class="focus-ring mt-5 inline-flex text-sm font-bold text-orange-700 hover:text-orange-800 dark:text-orange-300 dark:hover:text-orange-200">
+                Ver simulacros disponibles
+              </a>
+            </article>
+          </section>
+
+          <section id="categorias" class="mt-6">
+            <div class="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+              <div>
+                <h2 class="text-xl font-bold text-slate-950 dark:text-white">Elige una categoria</h2>
+                <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Empieza con una partida disponible.</p>
+              </div>
+              <span class="w-fit rounded-md bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                {playableCategories} listas
+              </span>
+            </div>
+
+            {categories.length === 0 ? (
+              <div class="rounded-md border border-dashed border-slate-300 bg-white/85 p-6 text-center text-sm text-slate-600 shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-slate-300">
+                Todavia no hay categorias disponibles para practicar.
+              </div>
+            ) : (
+              <div class="grid gap-3">
+                {categories.map((category, index) => {
+                  const disabled = category.questionCount < settings.questionsPerGame;
+                  return (
+                    <article class="group rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md dark:border-white/10 dark:bg-slate-900 dark:hover:border-orange-400/40 sm:p-5">
+                      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex min-w-0 gap-3">
+                          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-orange-50 text-sm font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <div class="min-w-0">
+                            <h3 class="text-base font-bold text-slate-950 dark:text-white">{category.name}</h3>
+                            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                              {category.questionCount} preguntas disponibles
+                            </p>
+                          </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                          <span class:list={[
+                            "shrink-0 rounded-md px-2.5 py-1 text-xs font-bold",
+                            disabled
+                              ? "bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
+                              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                          ]}>
+                            {disabled ? "Incompleta" : "Lista"}
+                          </span>
+
+                          {disabled ? (
+                            <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                              Faltan {Math.max(settings.questionsPerGame - category.questionCount, 0)}
+                            </span>
+                          ) : (
+                            <a
+                              href={`/jugar/${category.id}`}
+                              class="focus-ring inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700"
+                            >
+                              <Play size={16} fill="currentColor" aria-hidden="true" />
+                              Iniciar
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section class="mt-6 grid gap-3 md:grid-cols-3">
+            {featureCards.map((card) => {
+              return (
+                <BenefitCard title={card.title} description={card.description} icon={card.icon} tone={card.color} href={card.href} />
+              );
+            })}
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <PublicMobileNav active="home" />
+  </main>
+
+  <script>
+    const carousels = document.querySelectorAll<HTMLElement>("[data-hero-carousel]");
+
+    carousels.forEach((carousel) => {
+      const slides = Array.from(carousel.querySelectorAll<HTMLElement>("[data-hero-slide]"));
+      const dots = Array.from(carousel.querySelectorAll<HTMLButtonElement>("[data-hero-dot]"));
+      const caption = carousel.querySelector<HTMLElement>("[data-hero-caption]");
+      const previous = carousel.querySelector<HTMLButtonElement>("[data-hero-prev]");
+      const next = carousel.querySelector<HTMLButtonElement>("[data-hero-next]");
+      const toggle = carousel.querySelector<HTMLButtonElement>("[data-hero-toggle]");
+      const pauseIcon = carousel.querySelector<HTMLElement>("[data-hero-pause-icon]");
+      const playIcon = carousel.querySelector<HTMLElement>("[data-hero-play-icon]");
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const delay = 5200;
+      let current = 0;
+      let timer: number | undefined;
+      let manuallyPaused = false;
+
+      if (slides.length === 0) {
+        return;
+      }
+
+      const activate = (index: number) => {
+        current = (index + slides.length) % slides.length;
+
+        slides.forEach((slide, slideIndex) => {
+          slide.classList.toggle("is-active", slideIndex === current);
+        });
+
+        dots.forEach((dot, dotIndex) => {
+          dot.setAttribute("aria-current", String(dotIndex === current));
+        });
+
+        if (caption) {
+          const activeDot = dots[current];
+          caption.textContent = activeDot?.getAttribute("title") || "";
+        }
+      };
+
+      const stop = () => {
+        if (timer) {
+          window.clearInterval(timer);
+          timer = undefined;
+        }
+      };
+
+      const start = () => {
+        if (manuallyPaused || reducedMotion || slides.length < 2 || timer) {
+          return;
+        }
+
+        timer = window.setInterval(() => activate(current + 1), delay);
+      };
+
+      const syncToggle = () => {
+        if (!toggle) {
+          return;
+        }
+
+        const label = manuallyPaused ? "Reanudar carrusel" : "Pausar carrusel";
+        toggle.setAttribute("aria-label", label);
+        toggle.setAttribute("aria-pressed", String(manuallyPaused));
+        toggle.setAttribute("title", label);
+        pauseIcon?.classList.toggle("hidden", manuallyPaused);
+        playIcon?.classList.toggle("hidden", !manuallyPaused);
+      };
+
+      dots.forEach((dot) => {
+        dot.addEventListener("click", () => {
+          const index = Number(dot.getAttribute("data-slide-index"));
+          if (Number.isFinite(index)) {
+            activate(index);
+          }
+        });
+      });
+
+      previous?.addEventListener("click", () => activate(current - 1));
+      next?.addEventListener("click", () => activate(current + 1));
+      toggle?.addEventListener("click", () => {
+        manuallyPaused = !manuallyPaused;
+        if (manuallyPaused) {
+          stop();
+        } else {
+          start();
+        }
+        syncToggle();
+      });
+      carousel.addEventListener("mouseenter", stop);
+      carousel.addEventListener("mouseleave", start);
+      carousel.addEventListener("focusin", stop);
+      carousel.addEventListener("focusout", start);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stop();
+        } else {
+          start();
+        }
+      });
+
+      activate(0);
+      syncToggle();
+      start();
+    });
+  </script>
+
+  <style>
+    .hero-slide {
+      opacity: 0;
+      transform: scale(1.045) translateX(1.5rem);
+      transition:
+        opacity 700ms ease,
+        transform 950ms ease;
+    }
+
+    .hero-slide.is-active {
+      opacity: 1;
+      transform: scale(1) translateX(0);
+    }
+
+    .hero-dot {
+      height: 0.625rem;
+      width: 0.625rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.48);
+      transition:
+        width 220ms ease,
+        background-color 220ms ease,
+        opacity 220ms ease;
+    }
+
+    .hero-dot:hover,
+    .hero-dot[aria-current="true"] {
+      background: #ffffff;
+      opacity: 1;
+    }
+
+    .hero-dot[aria-current="true"] {
+      width: 2rem;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero-slide,
+      .hero-dot {
+        transition: none;
+      }
+    }
+  </style>
+</BaseLayout>

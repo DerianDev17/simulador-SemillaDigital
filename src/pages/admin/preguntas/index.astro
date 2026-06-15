@@ -1,0 +1,119 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getAdminSession, verifyAdminCsrf } from "@/lib/auth";
+import { deleteQuestionAndImage, listCategories, listQuestions } from "@/lib/store";
+import Plus from "@lucide/astro/icons/plus";
+import Search from "@lucide/astro/icons/search";
+import Trash2 from "@lucide/astro/icons/trash-2";
+
+const session = getAdminSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect("/admin/login");
+}
+
+const selectedCategoryId = Number(Astro.url.searchParams.get("categoria"));
+const categoryId = Number.isInteger(selectedCategoryId) && selectedCategoryId > 0 ? selectedCategoryId : undefined;
+const search = Astro.url.searchParams.get("buscar")?.trim() ?? "";
+
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+  const verified = verifyAdminCsrf(Astro.cookies, formData);
+  if (!verified) {
+    return new Response("Token CSRF invalido.", { status: 403 });
+  }
+
+  const id = Number(formData.get("questionId"));
+  if (Number.isInteger(id) && id > 0) {
+    await deleteQuestionAndImage(id);
+  }
+  return Astro.redirect(`/admin/preguntas${Astro.url.search}`);
+}
+
+const categories = listCategories();
+const questions = listQuestions({ categoryId, search });
+const hasFilters = Boolean(categoryId || search);
+---
+
+<AdminLayout title="Gestion de preguntas" active="questions" csrfToken={session.csrfToken}>
+  <section class="space-y-5">
+    <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-950 dark:text-white">Gestion de preguntas</h1>
+        <p class="text-sm text-slate-600 dark:text-slate-400">Administra el banco de preguntas.</p>
+      </div>
+      <a href="/admin/preguntas/nueva" class="focus-ring inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700">
+        <Plus size={16} aria-hidden="true" />
+        Nueva pregunta
+      </a>
+    </div>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <form method="get" class="grid gap-3 border-b border-slate-100 pb-4 dark:border-white/10 md:grid-cols-[1fr_1.4fr_auto_auto]">
+        <label>
+          <span class="sr-only">Filtrar por categoria</span>
+          <select name="categoria" class="focus-ring w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200" data-testid="question-category-filter">
+            <option value="">Todas las categorias</option>
+            {categories.map((category) => (
+              <option value={category.id} selected={categoryId === category.id}>{category.name}</option>
+            ))}
+          </select>
+        </label>
+        <label class="relative">
+          <span class="sr-only">Buscar pregunta</span>
+          <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+          <input class="focus-ring w-full rounded-md border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200" type="search" name="buscar" value={search} placeholder="Buscar pregunta..." data-testid="question-search" />
+        </label>
+        <button class="focus-ring rounded-md bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
+          Buscar
+        </button>
+        {hasFilters ? (
+          <a href="/admin/preguntas" class="focus-ring inline-flex items-center justify-center rounded-md border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10">
+            Limpiar
+          </a>
+        ) : null}
+      </form>
+
+      {questions.length === 0 ? (
+        <div class="p-8 text-center text-sm text-slate-600 dark:text-slate-300">
+          {hasFilters ? "No hay preguntas que coincidan con los filtros." : "Todavia no hay preguntas."}
+        </div>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[760px] text-left text-sm">
+            <thead class="text-xs uppercase text-slate-500 dark:text-slate-400">
+              <tr class="border-b border-slate-100 dark:border-white/10">
+                <th class="px-3 py-3 font-bold">ID</th>
+                <th class="px-3 py-3 font-bold">Pregunta</th>
+                <th class="px-3 py-3 font-bold">Categoria</th>
+                <th class="px-3 py-3 text-right font-bold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-white/10">
+              {questions.map((question) => (
+                <tr class="align-top hover:bg-slate-50 dark:hover:bg-white/5" data-testid="question-card">
+                  <td class="px-3 py-3 font-semibold text-slate-500 dark:text-slate-400">{question.id}</td>
+                  <td class="max-w-md px-3 py-3 font-semibold text-slate-900 dark:text-white">{question.prompt}</td>
+                  <td class="px-3 py-3 text-slate-600 dark:text-slate-300">{question.categoryName}</td>
+                  <td class="px-3 py-3">
+                    <div class="flex justify-end gap-2">
+                      <a href={`/admin/preguntas/${question.id}/editar`} class="focus-ring rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:text-slate-200 dark:hover:text-orange-200" data-testid="edit-question">
+                        Editar
+                      </a>
+                      <form method="post" data-confirm-message="Eliminar esta pregunta no se puede deshacer. Deseas continuar?">
+                        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+                        <input type="hidden" name="questionId" value={question.id} />
+                        <button class="focus-ring grid h-9 w-9 place-items-center rounded-md border border-red-200 text-red-700 hover:bg-red-50 dark:border-red-400/30 dark:text-red-200 dark:hover:bg-red-500/10" data-testid="delete-question" aria-label="Eliminar pregunta">
+                          <Trash2 size={16} aria-hidden="true" />
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  </section>
+</AdminLayout>

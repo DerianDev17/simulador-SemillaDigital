@@ -1,0 +1,89 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PublicMobileNav from "@/components/PublicMobileNav.astro";
+import PublicSidebar from "@/components/PublicSidebar.astro";
+import { ensureDefaultSettings, listCategorySummaries } from "@/lib/store";
+import Play from "@lucide/astro/icons/play";
+
+const settings = ensureDefaultSettings();
+const categories = listCategorySummaries();
+---
+
+<BaseLayout
+  title="Categorias | Eus3 Simulador"
+  description="Explora las categorias disponibles del simulador EUS3 y empieza una practica con preguntas seleccionadas al azar."
+  canonical="/categorias"
+>
+  <main id="contenido" class="min-h-screen px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pt-5 lg:p-6">
+    <div class="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <PublicSidebar active="categories" />
+
+      <section class="rounded-lg border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/82">
+        <header class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-white/10 sm:px-5">
+          <a href="/" class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/img/eus-logo.png" alt="Eus3" class="h-10 w-10 rounded-md object-contain" />
+            <div>
+              <p class="text-[10px] font-bold uppercase text-orange-600 dark:text-orange-300">Simulador</p>
+              <p class="text-sm font-bold text-slate-950 dark:text-white">EUS3</p>
+            </div>
+          </a>
+          <div class="hidden lg:block">
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Simulador</p>
+            <p class="text-sm font-bold text-slate-950 dark:text-white">Categorias</p>
+          </div>
+        </header>
+
+        <div class="p-4 sm:p-6 lg:p-8">
+          <div class="mb-6">
+            <h1 class="text-2xl font-bold text-slate-950 dark:text-white sm:text-3xl">Categorias</h1>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Elige una categoria para empezar a practicar.</p>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {categories.map((category, index) => {
+              const ready = category.questionCount >= settings.questionsPerGame;
+              const percent = Math.min(100, Math.round((category.questionCount * 100) / Math.max(settings.questionsPerGame, 1)));
+              return (
+                <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+                  <div class="flex items-start justify-between">
+                    <span class="grid h-10 w-10 place-items-center rounded-md bg-orange-50 text-sm font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span class:list={[
+                      "rounded-md px-2.5 py-1 text-xs font-bold",
+                      ready ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200"
+                    ]}>
+                      {ready ? "Lista" : "Incompleta"}
+                    </span>
+                  </div>
+                  <h2 class="mt-5 text-lg font-bold text-slate-950 dark:text-white">{category.name}</h2>
+                  <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">{category.questionCount} preguntas</p>
+                  <div class="mt-5">
+                    <div class="mb-1 flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                      <span>{Math.min(percent, 100)}%</span>
+                      <span>{settings.questionsPerGame} requeridas</span>
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
+                      <div class="h-full rounded-md bg-orange-600" style={`width: ${percent}%`}></div>
+                    </div>
+                  </div>
+                  {ready ? (
+                    <a href={`/jugar/${category.id}`} class="focus-ring mt-5 inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700">
+                      <Play size={16} fill="currentColor" aria-hidden="true" />
+                      Iniciar
+                    </a>
+                  ) : (
+                    <p class="mt-5 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+                      Necesita mas preguntas para iniciar.
+                    </p>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    </div>
+    <PublicMobileNav active="categories" />
+  </main>
+</BaseLayout>

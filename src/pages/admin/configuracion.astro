@@ -1,0 +1,87 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getAdminSession, verifyAdminCsrf } from "@/lib/auth";
+import { ensureDefaultSettings, updateSettings } from "@/lib/store";
+import { settingsSchema } from "@/lib/validation";
+
+const session = getAdminSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect("/admin/login");
+}
+
+let settings = ensureDefaultSettings();
+let message = "";
+let messageType: "error" | "success" = "error";
+
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+  const verified = verifyAdminCsrf(Astro.cookies, formData);
+  if (!verified) {
+    return new Response("Token CSRF invalido.", { status: 403 });
+  }
+
+  const parsed = settingsSchema.safeParse({
+    adminUsername: formData.get("adminUsername"),
+    password: formData.get("password"),
+    questionsPerGame: formData.get("questionsPerGame")
+  });
+
+  if (!parsed.success) {
+    message = parsed.error.issues[0]?.message ?? "Configuracion invalida.";
+  } else {
+    updateSettings({
+      adminUsername: parsed.data.adminUsername,
+      password: parsed.data.password,
+      questionsPerGame: parsed.data.questionsPerGame,
+      preserveSessionId: session.id
+    });
+    settings = ensureDefaultSettings();
+    message = "Configuracion actualizada.";
+    messageType = "success";
+  }
+}
+---
+
+<AdminLayout title="Configuracion" active="settings" csrfToken={session.csrfToken}>
+  <section class="space-y-5">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-950 dark:text-white">Configuracion</h1>
+      <p class="text-sm text-slate-600 dark:text-slate-400">Define el acceso administrador y el tamano de cada juego.</p>
+    </div>
+
+    {message && (
+      <p
+        role={messageType === "success" ? "status" : "alert"}
+        aria-live={messageType === "success" ? "polite" : "assertive"}
+        class:list={[
+        "rounded-md px-3 py-2 text-sm",
+        messageType === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+      ]}>
+        {message}
+      </p>
+    )}
+
+    <form method="post" class="max-w-3xl space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+      <input type="hidden" name="csrfToken" value={session.csrfToken} />
+
+      <label class="block">
+        <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Usuario administrador</span>
+        <input class="focus-ring mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="text" name="adminUsername" value={settings.adminUsername} required />
+      </label>
+
+      <label class="block">
+        <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Nueva contrasena</span>
+        <input class="focus-ring mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="password" name="password" autocomplete="new-password" placeholder="Dejar vacio para no cambiar" />
+      </label>
+
+      <label class="block">
+        <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Preguntas por juego</span>
+        <input class="focus-ring mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-3 text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white" type="number" min="1" max="100" name="questionsPerGame" value={settings.questionsPerGame} required />
+      </label>
+
+      <button class="focus-ring rounded-md bg-orange-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-orange-700">
+        Guardar configuracion
+      </button>
+    </form>
+  </section>
+</AdminLayout>

@@ -1,0 +1,16 @@
+---
+import { destroyAdminSession, verifyAdminCsrf } from "@/lib/auth";
+
+if (Astro.request.method !== "POST") {
+  return Astro.redirect("/admin/login");
+}
+
+const formData = await Astro.request.formData();
+const session = verifyAdminCsrf(Astro.cookies, formData);
+if (!session) {
+  return new Response("Token CSRF invalido.", { status: 403 });
+}
+
+destroyAdminSession(Astro.cookies);
+return Astro.redirect("/admin/login");
+---

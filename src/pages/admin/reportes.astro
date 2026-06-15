@@ -1,0 +1,168 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getAdminSession } from "@/lib/auth";
+import {
+  ensureDefaultSettings,
+  getQuizReportSummary,
+  getStats,
+  getTotalQuestions,
+  listCategoryAttemptSummaries,
+  listRecentQuizAttempts
+} from "@/lib/store";
+import ChartColumn from "@lucide/astro/icons/chart-column";
+import Download from "@lucide/astro/icons/download";
+import Target from "@lucide/astro/icons/target";
+import Timer from "@lucide/astro/icons/timer";
+import Trophy from "@lucide/astro/icons/trophy";
+
+const session = getAdminSession(Astro.cookies);
+if (!session) {
+  return Astro.redirect("/admin/login");
+}
+
+const settings = ensureDefaultSettings();
+const stats = getStats();
+const totalQuestions = getTotalQuestions();
+const report = getQuizReportSummary();
+const categoryAttempts = listCategoryAttemptSummaries();
+const recentAttempts = listRecentQuizAttempts();
+
+const formatDuration = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+};
+
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("es", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+---
+
+<AdminLayout title="Reportes" active="reports" csrfToken={session.csrfToken}>
+  <section class="space-y-6">
+    <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-950 dark:text-white sm:text-3xl">Reportes</h1>
+        <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Analitica basada en intentos completados.</p>
+      </div>
+      <a href="/admin/reportes.csv" class="focus-ring inline-flex w-fit items-center gap-2 rounded-md border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:text-slate-200 dark:hover:text-orange-200">
+        <Download size={16} aria-hidden="true" />
+        Exportar CSV
+      </a>
+    </div>
+
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {[
+        { label: "Intentos", value: report.totalAttempts, help: `${report.completedToday} completados hoy`, icon: Trophy, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" },
+        { label: "Precision media", value: `${report.averageScore}%`, help: `${report.totalCorrect}/${report.totalAnswered} correctas`, icon: Target, tone: "bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200" },
+        { label: "Tiempo medio", value: formatDuration(report.averageDurationSeconds), help: "por intento", icon: Timer, tone: "bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200" },
+        { label: "Banco", value: totalQuestions, help: `${settings.questionsPerGame} preguntas por juego`, icon: ChartColumn, tone: "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200" }
+      ].map((metric) => {
+        const Icon = metric.icon;
+        return (
+          <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs font-bold text-slate-500 dark:text-slate-400">{metric.label}</p>
+                <p class="mt-2 text-2xl font-black text-slate-950 dark:text-white">{metric.value}</p>
+              </div>
+              <span class:list={["grid h-10 w-10 place-items-center rounded-md", metric.tone]}>
+                <Icon size={20} aria-hidden="true" />
+              </span>
+            </div>
+            <p class="mt-3 text-xs text-slate-600 dark:text-slate-400">{metric.help}</p>
+          </article>
+        );
+      })}
+    </div>
+
+    <section class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+        <h2 class="text-lg font-bold text-slate-950 dark:text-white">Rendimiento por categoria</h2>
+        <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Promedios calculados desde intentos persistidos.</p>
+
+        {categoryAttempts.length === 0 ? (
+          <div class="mt-5 rounded-lg border border-dashed border-slate-300 p-6 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+            Todavia no hay intentos completados para reportar.
+          </div>
+        ) : (
+          <div class="mt-5 grid gap-3">
+            {categoryAttempts.map((category) => (
+              <article class="rounded-lg border border-slate-200 p-4 dark:border-white/10">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h3 class="font-bold text-slate-950 dark:text-white">{category.categoryName}</h3>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      {category.attempts} intentos - ultimo {formatDate(category.lastFinishedAt)}
+                    </p>
+                  </div>
+                  <span class="w-fit rounded-md bg-orange-50 px-2.5 py-1 text-sm font-black text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
+                    {category.averageScore}%
+                  </span>
+                </div>
+                <div class="mt-3 h-2 overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800">
+                  <div class="h-full rounded-md bg-orange-600" style={`width: ${category.averageScore}%`}></div>
+                </div>
+                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  Mejor {category.bestScore}% - menor {category.weakestScore}% - {category.totalCorrect}/{category.totalQuestions} correctas
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </article>
+
+      <aside class="space-y-4">
+        <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+          <h2 class="text-base font-bold text-slate-950 dark:text-white">Lectura rapida</h2>
+          <dl class="mt-4 space-y-3 text-sm">
+            <div>
+              <dt class="text-slate-500 dark:text-slate-400">Mejor categoria</dt>
+              <dd class="font-bold text-slate-950 dark:text-white">
+                {report.bestCategoryName ? `${report.bestCategoryName} (${report.bestCategoryScore}%)` : "Sin datos"}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-slate-500 dark:text-slate-400">Categoria a reforzar</dt>
+              <dd class="font-bold text-slate-950 dark:text-white">
+                {report.weakestCategoryName ? `${report.weakestCategoryName} (${report.weakestCategoryScore}%)` : "Sin datos"}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-slate-500 dark:text-slate-400">Visitas publicas</dt>
+              <dd class="font-bold text-slate-950 dark:text-white">{stats.visits}</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900">
+          <h2 class="text-base font-bold text-slate-950 dark:text-white">Ultimos intentos</h2>
+          {recentAttempts.length === 0 ? (
+            <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">Aun no hay intentos completados.</p>
+          ) : (
+            <div class="mt-4 space-y-3">
+              {recentAttempts.map((attempt) => (
+                <a href={`/final?game=${encodeURIComponent(attempt.id)}`} class="focus-ring block rounded-md border border-slate-200 p-3 hover:border-orange-200 hover:bg-orange-50/40 dark:border-white/10 dark:hover:border-orange-400/30 dark:hover:bg-orange-500/10">
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <p class="font-bold text-slate-950 dark:text-white">{attempt.categoryName}</p>
+                      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{formatDate(attempt.finishedAt)}</p>
+                    </div>
+                    <span class="rounded-md bg-slate-100 px-2 py-1 text-xs font-black text-slate-700 dark:bg-white/10 dark:text-slate-200">{attempt.score}%</span>
+                  </div>
+                  <p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                    {attempt.correctCount}/{attempt.totalQuestions} correctas - {formatDuration(attempt.durationSeconds)}
+                  </p>
+                </a>
+              ))}
+            </div>
+          )}
+        </article>
+      </aside>
+    </section>
+  </section>
+</AdminLayout>

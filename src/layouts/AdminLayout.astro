@@ -1,0 +1,68 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import AdminMobileNav from "@/components/AdminMobileNav.astro";
+import AdminSidebar from "@/components/AdminSidebar.astro";
+import LogOut from "@lucide/astro/icons/log-out";
+import Moon from "@lucide/astro/icons/moon";
+import Sun from "@lucide/astro/icons/sun";
+
+type AdminActive = "dashboard" | "categories" | "questions" | "simulations" | "users" | "import" | "reports" | "settings";
+
+interface Props {
+  title: string;
+  active: AdminActive;
+  csrfToken: string;
+}
+
+const { title, active, csrfToken } = Astro.props;
+---
+
+<BaseLayout title={`${title} | Admin`} robots="noindex, nofollow">
+  <div class="min-h-screen px-3 pb-6 pt-3 sm:px-5 sm:pt-5 lg:p-6">
+    <div class="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <AdminSidebar active={active} csrfToken={csrfToken} />
+
+      <section class="min-w-0 rounded-lg border border-slate-200/80 bg-white/82 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/82">
+        <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-3 dark:border-white/10 sm:px-5">
+          <a href="/admin" class="flex min-w-0 items-center gap-3 lg:hidden">
+            <img src="/img/eus-logo.png" alt="Eus3" class="h-10 w-10 rounded-md object-contain" />
+            <div class="min-w-0">
+              <p class="text-[10px] font-bold uppercase text-orange-600 dark:text-orange-300">Simulador</p>
+              <p class="truncate text-sm font-bold text-slate-950 dark:text-white">EUS3 Preuniversitario</p>
+            </div>
+          </a>
+
+          <div class="hidden lg:block">
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Administrador</p>
+            <p class="text-sm font-bold text-slate-950 dark:text-white">{title}</p>
+          </div>
+
+          <div class="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              class="focus-ring grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-orange-200"
+              aria-label="Cambiar tema"
+              data-theme-toggle
+            >
+              <Sun size={18} class="dark:hidden" aria-hidden="true" />
+              <Moon size={18} class="hidden dark:block" aria-hidden="true" />
+            </button>
+
+            <form method="post" action="/admin/logout" class="lg:hidden">
+              <input type="hidden" name="csrfToken" value={csrfToken} />
+              <button class="focus-ring grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-orange-200 hover:text-orange-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-orange-200" aria-label="Cerrar sesion">
+                <LogOut size={18} aria-hidden="true" />
+              </button>
+            </form>
+          </div>
+        </header>
+
+        <AdminMobileNav active={active} />
+
+        <main id="contenido" class="p-4 sm:p-6 lg:p-8">
+          <slot />
+        </main>
+      </section>
+    </div>
+  </div>
+</BaseLayout>
